@@ -1,11 +1,17 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import type { Database } from "@/types/database.types";
+
+// Middleware is intentionally lightweight — only refreshes the session cookie
+// and handles the unauthenticated → /login redirect.
+// Role-based routing and profile lookups live in server layouts, not here,
+// to stay well within Edge Runtime CPU limits.
+
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/invite", "/pricing"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient<Database>(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -26,105 +32,26 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresh session — this is the only async call in middleware
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const isPublicRoute = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-  // Public routes that don't require auth
-  const publicRoutes = ["/login", "/signup", "/auth/callback", "/invite", "/pricing"];
-  const isPublicRoute = publicRoutes.some((r) => pathname.startsWith(r));
-
+  // Unauthenticated user hitting a protected route → send to login
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isPublicRoute && pathname !== "/auth/callback") {
-    // Redirect logged-in users away from auth pages
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, onboarding_done")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) {
-      // Profile not yet created — let through to setup
-      if (pathname !== "/signup") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/signup";
-        return NextResponse.redirect(url);
-      }
-      return supabaseResponse;
-    }
-
+  // Authenticated user hitting login/signup → send to agency dashboard
+  // (full role-based routing is handled inside the dashboard layout)
+  if (user && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
-    url.pathname = getRoleDashboard(profile.role, profile.onboarding_done);
+    url.pathname = "/agency";
     return NextResponse.redirect(url);
   }
 
-  // Enforce role-based access to dashboard sub-routes
-  if (user && !isPublicRoute) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, onboarding_done, organisation_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/signup";
-      return NextResponse.redirect(url);
-    }
-
-    // Force onboarding for agency_admin who hasn't set up org
-    if (
-      profile.role === "agency_admin" &&
-      !profile.onboarding_done &&
-      pathname !== "/agency/onboarding"
-    ) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/agency/onboarding";
-      return NextResponse.redirect(url);
-    }
-
-    // Block cross-role access
-    const rolePrefix = getRolePrefix(profile.role);
-    if (rolePrefix && !pathname.startsWith(`/${rolePrefix}`) && pathname !== "/") {
-      const roleRoutes = ["/agency", "/creator", "/manager", "/brand"];
-      const isOtherRoleRoute = roleRoutes.some(
-        (r) => pathname.startsWith(r) && !pathname.startsWith(`/${rolePrefix}`)
-      );
-      if (isOtherRoleRoute) {
-        const url = request.nextUrl.clone();
-        url.pathname = getRoleDashboard(profile.role, profile.onboarding_done);
-        return NextResponse.redirect(url);
-      }
-    }
-  }
-
   return supabaseResponse;
-}
-
-function getRoleDashboard(role: string, onboardingDone: boolean): string {
-  if (role === "agency_admin" && !onboardingDone) return "/agency/onboarding";
-  const map: Record<string, string> = {
-    agency_admin: "/agency",
-    creator: "/creator",
-    manager: "/manager",
-    brand: "/brand",
-  };
-  return map[role] ?? "/login";
-}
-
-function getRolePrefix(role: string): string {
-  const map: Record<string, string> = {
-    agency_admin: "agency",
-    creator: "creator",
-    manager: "manager",
-    brand: "brand",
-  };
-  return map[role] ?? "";
 }
