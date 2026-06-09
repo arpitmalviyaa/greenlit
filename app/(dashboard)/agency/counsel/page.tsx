@@ -199,6 +199,11 @@ function RiskyClauseRow({ clause }: { clause: RiskyClause }) {
 }
 
 function AnalysisPanel({ analysis }: { analysis: AnalysisResult }) {
+  const riskyClauses = analysis.risky_clauses ?? [];
+  const missingClauses = analysis.missing_clauses ?? [];
+  const redFlags = analysis.red_flags ?? [];
+  const escalationReasons = analysis.lawyer_escalation_reasons ?? [];
+
   return (
     <div className="space-y-6">
       {analysis.lawyer_escalation_required && (
@@ -208,7 +213,7 @@ function AnalysisPanel({ analysis }: { analysis: AnalysisResult }) {
             <span className="text-purple-300 font-semibold">Do not sign without a lawyer</span>
           </div>
           <ul className="list-disc list-inside space-y-1">
-            {analysis.lawyer_escalation_reasons.map((r, i) => (
+            {escalationReasons.map((r, i) => (
               <li key={i} className="text-sm text-purple-300/80">{r}</li>
             ))}
           </ul>
@@ -254,26 +259,26 @@ function AnalysisPanel({ analysis }: { analysis: AnalysisResult }) {
         </div>
       </div>
 
-      {analysis.risky_clauses.length > 0 && (
+      {riskyClauses.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400" />
-            Risky Clauses ({analysis.risky_clauses.length})
+            Risky Clauses ({riskyClauses.length})
           </h3>
           <div className="space-y-2">
-            {analysis.risky_clauses.map((c, i) => <RiskyClauseRow key={i} clause={c} />)}
+            {riskyClauses.map((c, i) => <RiskyClauseRow key={i} clause={c} />)}
           </div>
         </div>
       )}
 
-      {analysis.red_flags.length > 0 && (
+      {redFlags.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
             <XCircle className="w-4 h-4 text-red-400" />
-            Red Flags ({analysis.red_flags.length})
+            Red Flags ({redFlags.length})
           </h3>
           <div className="space-y-2">
-            {analysis.red_flags.map((f, i) => (
+            {redFlags.map((f, i) => (
               <div key={i} className="rounded-lg border border-red-900/50 bg-red-900/20 p-4">
                 <p className="text-sm font-medium text-red-300 mb-1">{f.flag}</p>
                 <p className="text-sm text-slate-300">{f.explanation}</p>
@@ -283,14 +288,14 @@ function AnalysisPanel({ analysis }: { analysis: AnalysisResult }) {
         </div>
       )}
 
-      {analysis.missing_clauses.length > 0 && (
+      {missingClauses.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
             <ShieldQuestion className="w-4 h-4 text-slate-400" />
-            Missing Clauses ({analysis.missing_clauses.length})
+            Missing Clauses ({missingClauses.length})
           </h3>
           <div className="space-y-2">
-            {analysis.missing_clauses.map((m, i) => (
+            {missingClauses.map((m, i) => (
               <div key={i} className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide capitalize">{m.clause_type}</p>
                 <p className="text-sm text-slate-300 mt-1">{m.why_needed}</p>
@@ -1027,7 +1032,7 @@ export default function CounselPage() {
                     <div className="flex items-center gap-2">
                       {activeAnalysis.lawyer_escalation_required
                         ? <ShieldAlert className="w-5 h-5 text-purple-400" />
-                        : activeAnalysis.risk_score < 30
+                        : (activeAnalysis.risk_score ?? 100) < 30
                         ? <ShieldCheck className="w-5 h-5 text-green-400" />
                         : <ShieldQuestion className="w-5 h-5 text-amber-400" />
                       }
