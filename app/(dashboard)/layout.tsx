@@ -15,7 +15,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", user.id)
     .single();
 
-  if (!profile) redirect("/login");
+  // No profile = new user who hasn't completed onboarding yet.
+  // Redirecting to /login here would create a loop because middleware
+  // sends authenticated users from /login straight back to /agency.
+  if (!profile) redirect("/agency/onboarding");
 
   let orgName = "Greenlit";
   if (profile.organisation_id) {
