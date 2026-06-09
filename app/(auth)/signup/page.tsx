@@ -53,20 +53,9 @@ export default function SignupPage() {
       return;
     }
 
-    // 2. Create profile row (agency_admin, no org yet — set in onboarding)
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: authData.user.id,
-      role: "agency_admin",
-      name,
-      email,
-      onboarding_done: false,
-    });
-
-    if (profileError) {
-      setError(profileError.message);
-      setLoading(false);
-      return;
-    }
+    // Profile row is created by the handle_new_user trigger on auth.users INSERT.
+    // Do not insert here — there is no session until email is confirmed, so
+    // auth.uid() would be null and RLS would reject the insert.
 
     setLoading(false);
     setStep("jurisdiction");
