@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   // Upload to Supabase Storage
   const service = await createServiceClient();
-  const storagePath = `${profile.organisation_id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const storagePath = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
   const { error: storageError } = await service.storage
     .from("contracts")

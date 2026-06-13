@@ -32,7 +32,8 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh session — this is the only async call in middleware
+  // Refresh the session cookie on every matched request.
+  const { data: { session } } = await supabase.auth.getSession();
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
