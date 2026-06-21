@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   // Upload to Supabase Storage
   const service = await createServiceClient();
-  const storagePath = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const storagePath = `${profile.organisation_id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
   const { error: storageError } = await service.storage
     .from("contracts")
@@ -60,7 +60,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: urlData } = service.storage.from("contracts").getPublicUrl(storagePath);
+  const { data: urlData, error: signedUrlError } = await service.storage
+    .from("contracts")
+    .createSignedUrl(storagePath, 60 * 60);
+
+  if (signedUrlError) {
+    await service.storage.from("contracts").remove([storagePath]);
+    return NextResponse.json(
+      { error: `Signed URL creation failed: ${signedUrlError.message}` },
+      { status: 500 }
+    );
+  }
 
   // Insert contract row
   const { data: contract, error: dbError } = await service
@@ -68,7 +78,7 @@ export async function POST(request: Request) {
     .insert({
       organisation_id: profile.organisation_id,
       title,
-      file_url: urlData.publicUrl,
+      file_url: urlData.signedUrl,
       file_name: file.name,
       file_size_bytes: file.size,
       raw_text: text || null,

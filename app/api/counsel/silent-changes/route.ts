@@ -13,7 +13,7 @@ interface SilentChange {
 
 function safeParse<T>(text: string): T | null {
   try {
-    const cleaned = text.replace(/^```json?\n?/m, "").replace(/\n?```$/m, "").trim();
+    const cleaned = text.trim().replace(/^```json?\s*/i, "").replace(/\s*```$/, "").trim();
     return JSON.parse(cleaned) as T;
   } catch {
     return null;
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   try {
     const resp = await anthropic.messages.create({
       model: MODELS.HAIKU,
-      max_tokens: 600,
+      max_tokens: 1000,
       system: SILENT_CHANGES_SYSTEM,
       messages: [{ role: "user", content: silentChangesUser(contractA.raw_text, contractB.raw_text) }],
     });
