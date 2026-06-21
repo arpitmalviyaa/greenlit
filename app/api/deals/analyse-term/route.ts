@@ -30,6 +30,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "deal_room_id and term_json required" }, { status: 400 });
   }
 
+  const { data: room } = await supabase
+    .from("deal_rooms")
+    .select("id")
+    .eq("id", body.deal_room_id)
+    .eq("organisation_id", profile.organisation_id)
+    .single();
+  if (!room) return NextResponse.json({ error: "Deal room not found" }, { status: 404 });
+
   const jurisdiction = body.jurisdiction ?? "IN";
   const anthropic = getAnthropicClient();
   const msg = await anthropic.messages.create({

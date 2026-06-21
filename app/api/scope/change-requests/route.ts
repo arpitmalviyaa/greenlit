@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   if (!profile?.organisation_id) return NextResponse.json({ error: "No organisation" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const sow_id = searchParams.get("sow_id");
+  const deal_room_id = searchParams.get("deal_room_id");
 
   let query = supabase
     .from("scope_change_requests")
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     .eq("organisation_id", profile.organisation_id)
     .order("created_at", { ascending: false });
 
-  if (sow_id) query = query.eq("sow_id", sow_id);
+  if (deal_room_id) query = query.eq("deal_room_id", deal_room_id);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

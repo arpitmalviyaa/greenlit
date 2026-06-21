@@ -10,7 +10,7 @@ function safeParse<T>(text: string): T | null {
 }
 
 interface AnalyseChangeBody {
-  sow_id: string;
+  deal_room_id: string;
   change_type: string;
   description: string;
   original_value: object;
@@ -27,8 +27,16 @@ export async function POST(req: Request) {
   if (!profile?.organisation_id) return NextResponse.json({ error: "No organisation" }, { status: 403 });
 
   const body = await req.json() as AnalyseChangeBody;
-  const { sow_id, change_type, description, original_value, proposed_value, jurisdiction = "IN" } = body;
-  if (!sow_id || !change_type || !description) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  const { deal_room_id, change_type, description, original_value, proposed_value, jurisdiction = "IN" } = body;
+  if (!deal_room_id || !change_type || !description) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+
+  const { data: room } = await supabase
+    .from("deal_rooms")
+    .select("id")
+    .eq("id", deal_room_id)
+    .eq("organisation_id", profile.organisation_id)
+    .single();
+  if (!room) return NextResponse.json({ error: "Deal room not found" }, { status: 404 });
 
   const ai = getAnthropicClient();
   const res = await ai.messages.create({
@@ -51,7 +59,7 @@ export async function POST(req: Request) {
   const { data, error } = await service
     .from("scope_change_requests")
     .insert({
-      sow_id,
+      deal_room_id,
       organisation_id: profile.organisation_id,
       requested_by: user.id,
       change_type: change_type as never,

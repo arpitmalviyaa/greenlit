@@ -37,14 +37,14 @@ export async function POST(req: Request) {
   if (!profile?.organisation_id) return NextResponse.json({ error: "No organisation" }, { status: 403 });
 
   const body = await req.json() as {
-    creator_id: string;
-    sow_id?: string;
+    creator_id?: string;
+    counterparty_name?: string;
     title: string;
     jurisdiction?: string;
   };
 
-  if (!body.creator_id || !body.title) {
-    return NextResponse.json({ error: "creator_id and title are required" }, { status: 400 });
+  if (!body.title?.trim()) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
   const service = await createServiceClient();
@@ -52,9 +52,9 @@ export async function POST(req: Request) {
     .from("deal_rooms")
     .insert({
       organisation_id: profile.organisation_id,
-      creator_id: body.creator_id,
-      sow_id: body.sow_id ?? null,
-      title: body.title,
+      creator_id: body.creator_id ?? null,
+      counterparty_name: body.counterparty_name?.trim() || null,
+      title: body.title.trim(),
       jurisdiction: body.jurisdiction ?? "IN",
       created_by: user.id,
     })

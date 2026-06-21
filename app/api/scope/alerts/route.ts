@@ -11,7 +11,7 @@ export async function GET(_req: Request) {
 
   const { data, error } = await supabase
     .from("scope_alerts")
-    .select("*, sows(title, brand_name)")
+    .select("*, deal_rooms(title, counterparty_name)")
     .eq("organisation_id", profile.organisation_id)
     .eq("resolved", false)
     .order("severity", { ascending: true })

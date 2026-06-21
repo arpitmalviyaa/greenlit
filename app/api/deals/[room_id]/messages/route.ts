@@ -52,6 +52,14 @@ export async function POST(
 
   if (!body.content) return NextResponse.json({ error: "content is required" }, { status: 400 });
 
+  const { data: room } = await supabase
+    .from("deal_rooms")
+    .select("id")
+    .eq("id", room_id)
+    .eq("organisation_id", profile.organisation_id)
+    .single();
+  if (!room) return NextResponse.json({ error: "Deal room not found" }, { status: 404 });
+
   const service = await createServiceClient();
   const { data: msg, error } = await service
     .from("deal_messages")
@@ -71,7 +79,7 @@ export async function POST(
   let analysis = null;
   if (body.message_type === "term_proposal" && body.term_json) {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const baseUrl = new URL(req.url).origin;
       const res = await fetch(`${baseUrl}/api/deals/analyse-term`, {
         method: "POST",
         headers: { "Content-Type": "application/json", cookie: req.headers.get("cookie") ?? "" },
