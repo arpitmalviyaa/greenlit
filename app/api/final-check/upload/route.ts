@@ -74,5 +74,15 @@ ${extracted.text.slice(0, 45000)}`;
   });
   if (versionError) return NextResponse.json({ error: versionError.message }, { status: 500 });
 
+  await service.from("negotiation_messages").insert({
+    contract_id: contractId,
+    direction: "internal",
+    source_text: `Revised contract received: ${file.name} (version ${version})`,
+    generated_text: null,
+    tone: null,
+    channel: "internal",
+    created_by: user.id,
+  });
+
   return NextResponse.json({ version, comparison });
 }

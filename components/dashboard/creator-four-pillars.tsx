@@ -11,7 +11,7 @@ type ContractStatus = "pending_review" | "reviewed" | "negotiated" | "approved" 
 type RiskyClause = { clause_text?: string; issue?: string; severity?: string; suggestion?: string };
 type Contract = {
   id: string; title: string; status: ContractStatus; created_at: string;
-  risk_score: number | null; raw_text: string | null; file_name: string | null;
+  risk_score: number | null; raw_text: string | null; document_html: string | null; file_name: string | null;
   analysis_json: { risky_clauses?: RiskyClause[] } | null;
   deal_rooms: Array<{ counterparty_name: string | null }>;
 };
@@ -24,6 +24,11 @@ type ContractVersion = {
   comparison_json: Comparison | null; created_at: string;
 };
 type KnowledgeEntry = { id: string; title: string; category: string; content: string; jurisdiction: string };
+type ConversationMessage = {
+  id: string; clause_index: number | null; direction: "incoming" | "draft" | "internal";
+  source_text: string | null; generated_text: string | null; tone: string | null;
+  channel: "email" | "whatsapp" | "internal"; created_at: string;
+};
 type View = "contracts" | "negotiation" | "final" | "knowledge";
 
 const STATUS: Record<ContractStatus, string> = {
@@ -61,6 +66,9 @@ export function CreatorFourPillars({
   const [drafting, setDrafting] = useState(false);
   const [tone, setTone] = useState("polite and commercially constructive");
   const [incoming, setIncoming] = useState("");
+  const [channel, setChannel] = useState<"email" | "whatsapp">("email");
+  const [thread, setThread] = useState<ConversationMessage[]>([]);
+  const [revisionFile, setRevisionFile] = useState<File | null>(null);
   const [finalFile, setFinalFile] = useState<File | null>(null);
   const [finalLoading, setFinalLoading] = useState(false);
   const [knowledge, setKnowledge] = useState<KnowledgeEntry[]>(FALLBACK_KNOWLEDGE);
@@ -93,6 +101,14 @@ export function CreatorFourPillars({
     return text.split("\n").filter((line) => line.toLowerCase().includes(query)).join("\n");
   }, [selectedContract, documentQuery]);
 
+  useEffect(() => {
+    if (!selectedContract?.id) return setThread([]);
+    fetch(`/api/counsel/draft?contract_id=${encodeURIComponent(selectedContract.id)}`)
+      .then((response) => response.ok ? response.json() as Promise<ConversationMessage[]> : [])
+      .then(setThread)
+      .catch(() => setThread([]));
+  }, [selectedContract?.id]);
+
   function navigate(next: View) {
     router.push(`/creator?view=${next}`);
   }
@@ -109,7 +125,7 @@ export function CreatorFourPillars({
       if (!body.extraction_success) throw new Error(body.extraction_error ?? "Text extraction failed");
       const pending: Contract = {
         id: body.contract_id, title: body.title ?? "Untitled Contract", status: "pending_review",
-        created_at: new Date().toISOString(), risk_score: null, raw_text: null, file_name: null,
+        created_at: new Date().toISOString(), risk_score: null, raw_text: null, document_html: null, file_name: null,
         analysis_json: null, deal_rooms: [],
       };
       setContracts((current) => [pending, ...current]);
@@ -155,35 +171,43 @@ export function CreatorFourPillars({
       body: JSON.stringify({
         contract_id: selectedContract.id, clause_index: selectedClause,
         clause: clause?.clause_text, suggestion: clause?.suggestion,
-        incoming: incoming.trim() || undefined, tone: customTone,
+        incoming: incoming.trim() || undefined, tone: customTone, channel,
       }),
     });
     const body = await response.json() as { draft?: string; error?: string };
     setDrafting(false);
     if (!response.ok || !body.draft) return setMessage(body.error ?? "Could not draft reply");
     setDraft(body.draft);
+    if (incoming.trim()) setIncoming("");
+    const threadResponse = await fetch(`/api/counsel/draft?contract_id=${encodeURIComponent(selectedContract.id)}`);
+    if (threadResponse.ok) setThread(await threadResponse.json() as ConversationMessage[]);
   }
 
-  async function submitFinal() {
-    if (!selectedContract || !finalFile) return;
+  async function uploadVersion(file: File | null, isFinal: boolean) {
+    if (!selectedContract || !file) return;
     setFinalLoading(true);
     setMessage("");
     const form = new FormData();
     form.set("contract_id", selectedContract.id);
-    form.set("file", finalFile);
+    form.set("file", file);
     const response = await fetch("/api/final-check/upload", { method: "POST", body: form });
     const body = await response.json() as { version?: number; comparison?: Comparison; error?: string };
     setFinalLoading(false);
     if (!response.ok || !body.version || !body.comparison) return setMessage(body.error ?? "Final comparison failed");
     setVersions((current) => [{
       id: `${selectedContract.id}-${body.version}`, contract_id: selectedContract.id,
-      version_number: body.version!, file_name: finalFile.name, comparison_json: body.comparison!,
+      version_number: body.version!, file_name: file.name, comparison_json: body.comparison!,
       created_at: new Date().toISOString(),
     }, ...current]);
-    setFinalFile(null);
-    setMessage(userRole === "agency_admin"
-      ? "Comparison complete. Start Final Contract Check explicitly when ready."
-      : "Comparison complete. An agency admin must explicitly start Final Contract Check.");
+    if (isFinal) setFinalFile(null);
+    else setRevisionFile(null);
+    const threadResponse = await fetch(`/api/counsel/draft?contract_id=${encodeURIComponent(selectedContract.id)}`);
+    if (threadResponse.ok) setThread(await threadResponse.json() as ConversationMessage[]);
+    setMessage(isFinal
+      ? userRole === "agency_admin"
+        ? "Comparison complete. Start Final Contract Check explicitly when ready."
+        : "Comparison complete. An agency admin must explicitly start Final Contract Check."
+      : `Version ${body.version} uploaded and compared with the original.`);
   }
 
   return (
@@ -243,14 +267,34 @@ export function CreatorFourPillars({
             <div className="relative sm:w-80"><Search className="absolute left-3 top-3 h-4 w-4 text-zinc-600" /><input className={`${field} pl-9`} value={documentQuery} onChange={(event) => setDocumentQuery(event.target.value)} placeholder="Find in document" /></div>
           </div>
 
+          <div className={`${panel} flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between`}>
+            <div>
+              <p className="font-medium">Received a revised contract?</p>
+              <p className="mt-1 text-sm text-zinc-500">Upload it here. Greenlit saves it as the next version, compares it with the original, and adds the event to this negotiation thread.</p>
+            </div>
+            <div className="flex min-w-0 flex-col gap-2 sm:w-[360px]">
+              <input className={field} type="file" accept=".pdf,.docx" onChange={(event) => setRevisionFile(event.target.files?.[0] ?? null)} />
+              <button className={primary} disabled={!revisionFile || finalLoading} onClick={() => void uploadVersion(revisionFile, false)}>
+                <Upload className="mr-2 h-4 w-4" />{finalLoading ? "Comparing version…" : "Upload revised version"}
+              </button>
+            </div>
+          </div>
+
           <div className="grid min-h-[720px] gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,.8fr)]">
             <div className={`${panel} overflow-hidden`}>
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div><p className="font-medium">{selectedContract?.title ?? "No contract selected"}</p><p className="text-xs text-zinc-600">{selectedContract?.file_name}</p></div>
                 {selectedContract && <button className={secondary} onClick={() => void downloadContract(selectedContract.id)}><Download className="mr-2 h-4 w-4" />Download</button>}
               </div>
-              <article className="h-[650px] overflow-y-auto whitespace-pre-wrap px-8 py-10 font-serif text-[15px] leading-8 text-zinc-300">
-                {visibleText || "Extracted document text is unavailable."}
+              <article className="h-[650px] overflow-y-auto bg-white px-8 py-10 font-serif text-[15px] leading-7 text-zinc-950 md:px-12">
+                {!documentQuery.trim() && selectedContract?.document_html ? (
+                  <div
+                    className="[&_h1]:mb-6 [&_h1]:text-2xl [&_h2]:mb-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h3]:mb-3 [&_h3]:mt-6 [&_li]:mb-2 [&_ol]:mb-5 [&_ol]:ml-6 [&_ol]:list-decimal [&_p]:mb-4 [&_table]:mb-5 [&_table]:w-full [&_td]:border [&_td]:border-zinc-300 [&_td]:p-2 [&_th]:border [&_th]:border-zinc-300 [&_th]:p-2 [&_ul]:mb-5 [&_ul]:ml-6 [&_ul]:list-disc"
+                    dangerouslySetInnerHTML={{ __html: selectedContract.document_html }}
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap">{visibleText || "Extracted document text is unavailable."}</div>
+                )}
               </article>
             </div>
 
@@ -292,10 +336,36 @@ export function CreatorFourPillars({
             </aside>
           </div>
 
-          <div className={`${panel} p-5`}>
-            <div className="mb-4 flex items-center gap-2"><MessageSquare className="h-4 w-4" /><h3 className="font-medium">Reply to the latest message</h3></div>
-            <textarea className={`${field} min-h-36 resize-y`} value={incoming} onChange={(event) => setIncoming(event.target.value)} placeholder="Paste the brand or agency email, text, or latest reply here…" />
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input className={field} value={tone} onChange={(event) => setTone(event.target.value)} /><button className={primary} disabled={!incoming.trim() || drafting} onClick={() => void createDraft()}><Send className="mr-2 h-4 w-4" />Draft consolidated reply</button></div>
+          <div className={`${panel} overflow-hidden`}>
+            <div className="border-b border-white/10 p-5">
+              <div className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /><h3 className="font-medium">Negotiation thread</h3></div>
+              <p className="mt-1 text-sm text-zinc-500">Keep emails and WhatsApp exchanges beside the contract. Greenlit never sends them automatically.</p>
+            </div>
+            <div className="max-h-[520px] space-y-4 overflow-y-auto p-5">
+              {!thread.length && <p className="py-10 text-center text-sm text-zinc-600">No messages saved yet. Paste the latest reply below to begin the thread.</p>}
+              {thread.map((item) => (
+                <div key={item.id} className={`flex ${item.direction === "draft" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-xl border p-4 ${item.direction === "draft" ? "border-white bg-white text-black" : item.direction === "internal" ? "border-dashed border-white/20 text-zinc-500" : "border-white/20 text-zinc-200"}`}>
+                    <p className={`mb-2 text-[11px] uppercase tracking-widest ${item.direction === "draft" ? "text-zinc-500" : "text-zinc-600"}`}>
+                      {item.direction === "draft" ? `Greenlit draft · ${item.channel}` : item.direction === "internal" ? "Version history" : `Brand / agency · ${item.channel}`}
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm leading-6">{item.generated_text ?? item.source_text}</p>
+                    <p className={`mt-3 text-[11px] ${item.direction === "draft" ? "text-zinc-500" : "text-zinc-700"}`}>{new Date(item.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-white/10 p-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+                <select className={`${field} sm:w-40`} value={channel} onChange={(event) => setChannel(event.target.value as "email" | "whatsapp")}>
+                  <option value="email">Email</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+                <input className={field} value={tone} onChange={(event) => setTone(event.target.value)} placeholder="Tone: soft, concise, firm…" />
+              </div>
+              <textarea className={`${field} min-h-32 resize-y`} value={incoming} onChange={(event) => setIncoming(event.target.value)} placeholder="Paste the latest brand or agency message here…" />
+              <button className={`${primary} mt-3 w-full sm:w-auto`} disabled={!incoming.trim() || drafting} onClick={() => void createDraft()}><Send className="mr-2 h-4 w-4" />Save message and draft reply</button>
+            </div>
           </div>
         </section>
       )}
@@ -312,7 +382,7 @@ export function CreatorFourPillars({
             </select>
             <label className="mt-5 block text-xs uppercase tracking-widest text-zinc-600">Revised document</label>
             <input className={`${field} mt-2`} type="file" accept=".pdf,.docx" onChange={(event) => setFinalFile(event.target.files?.[0] ?? null)} />
-            <button className={`${primary} mt-4 w-full`} disabled={!selectedContract || !finalFile || finalLoading} onClick={() => void submitFinal()}>
+            <button className={`${primary} mt-4 w-full`} disabled={!selectedContract || !finalFile || finalLoading} onClick={() => void uploadVersion(finalFile, true)}>
               {finalLoading ? "Comparing every clause…" : "Upload and compare"}
             </button>
             <p className="mt-4 text-xs leading-5 text-zinc-600">Approved means Greenlit cleared it. Signed remains a separate real-signature state. Negotiated requires explicit action.</p>

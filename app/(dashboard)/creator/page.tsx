@@ -16,7 +16,7 @@ export default async function CreatorDashboardPage() {
 
   const { data: contracts, error } = await supabase
     .from("contracts")
-    .select("id, title, status, created_at, analysis_json, risk_score, raw_text, file_name, deal_rooms(counterparty_name)")
+    .select("id, title, status, created_at, analysis_json, risk_score, raw_text, document_html, file_name, deal_rooms(counterparty_name)")
     .eq("uploaded_by", user.id)
     .eq("organisation_id", profile.organisation_id)
     .order("created_at", { ascending: false });

@@ -4,7 +4,7 @@ export async function extractTextFromBuffer(
   buffer: Buffer,
   mimeType: string,
   fileName: string
-): Promise<{ text: string; error?: string }> {
+): Promise<{ text: string; html?: string; error?: string }> {
   try {
     if (mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) {
       return extractPdf(buffer);
@@ -22,7 +22,7 @@ export async function extractTextFromBuffer(
   }
 }
 
-async function extractPdf(buffer: Buffer): Promise<{ text: string; error?: string }> {
+async function extractPdf(buffer: Buffer): Promise<{ text: string; html?: string; error?: string }> {
   try {
     // Dynamic import avoids Next.js edge runtime issues
     const pdfModule = await import("pdf-parse");
@@ -39,15 +39,26 @@ async function extractPdf(buffer: Buffer): Promise<{ text: string; error?: strin
   }
 }
 
-async function extractDocx(buffer: Buffer): Promise<{ text: string; error?: string }> {
+async function extractDocx(buffer: Buffer): Promise<{ text: string; html?: string; error?: string }> {
   try {
     const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    const text = result.value?.trim() ?? "";
+    const [raw, rendered] = await Promise.all([
+      mammoth.extractRawText({ buffer }),
+      mammoth.convertToHtml({ buffer }),
+    ]);
+    const text = raw.value?.trim() ?? "";
     if (!text) return { text: "", error: "DOCX contained no extractable text" };
-    return { text };
+    return { text, html: sanitiseMammothHtml(rendered.value) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "DOCX parsing failed";
     return { text: "", error: msg };
   }
+}
+
+function sanitiseMammothHtml(html: string): string {
+  // ponytail: Mammoth generates a small, predictable tag set. If richer Word
+  // fidelity is needed later, replace this allowlist with a full document renderer.
+  return html
+    .replace(/<(?!\/?(?:p|h[1-6]|ol|ul|li|strong|em|table|thead|tbody|tr|th|td|br)\b)[^>]*>/gi, "")
+    .replace(/<(\/?(?:p|h[1-6]|ol|ul|li|strong|em|table|thead|tbody|tr|th|td|br))\b[^>]*>/gi, "<$1>");
 }

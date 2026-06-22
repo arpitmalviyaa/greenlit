@@ -46,13 +46,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated user hitting login/signup → send to agency dashboard
-  // (full role-based routing is handled inside the dashboard layout)
-  if (user && (pathname === "/login" || pathname === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/agency";
-    return NextResponse.redirect(url);
-  }
-
   return supabaseResponse;
 }

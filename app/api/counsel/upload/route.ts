@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   // Extract text
-  const { text, error: extractError } = await extractTextFromBuffer(buffer, file.type, file.name);
+  const { text, html, error: extractError } = await extractTextFromBuffer(buffer, file.type, file.name);
 
   // Upload to Supabase Storage
   const service = await createServiceClient();
@@ -73,8 +73,8 @@ export async function POST(request: Request) {
   }
 
   // Insert contract row
-  const { data: contract, error: dbError } = await service
-    .from("contracts")
+  const { data: contract, error: dbError } = await (service
+    .from("contracts") as ReturnType<typeof service.from>)
     .insert({
       organisation_id: profile.organisation_id,
       title,
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
       file_name: file.name,
       file_size_bytes: file.size,
       raw_text: text || null,
+      document_html: html || null,
       uploaded_by: user.id,
       status: "pending_review",
     })
