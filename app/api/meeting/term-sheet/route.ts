@@ -16,8 +16,8 @@ export async function POST(req: Request) {
     .single();
   if (!profile?.organisation_id) return NextResponse.json({ error: "No organisation" }, { status: 403 });
 
-  const body = await req.json() as { transcript_id?: string; jurisdiction?: string };
-  const { transcript_id, jurisdiction = "IN" } = body;
+  const body = await req.json() as { transcript_id?: string; contract_id?: string; jurisdiction?: string };
+  const { transcript_id, contract_id, jurisdiction = "IN" } = body;
   if (!transcript_id) return NextResponse.json({ error: "transcript_id is required" }, { status: 400 });
 
   const { data: transcript } = await supabase
@@ -27,6 +27,15 @@ export async function POST(req: Request) {
     .single();
   if (!transcript || transcript.organisation_id !== profile.organisation_id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (contract_id) {
+    const { data: contract } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("id", contract_id)
+      .eq("organisation_id", profile.organisation_id)
+      .single();
+    if (!contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 });
   }
 
   const analysis = transcript.analysis_json as { agreed_terms?: string[] } | null;
@@ -47,6 +56,7 @@ export async function POST(req: Request) {
   const { data: saved } = await serviceClient.from("term_sheets").insert({
     organisation_id: profile.organisation_id,
     transcript_id,
+    contract_id: contract_id ?? null,
     title: `Term Sheet — ${transcript.title}`,
     jurisdiction,
     terms_json: termsJson,

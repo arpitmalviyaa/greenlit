@@ -16,11 +16,12 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
   const sow_id = url.searchParams.get("sow_id");
+  const contract_id = url.searchParams.get("contract_id");
   const assigned_to = url.searchParams.get("assigned_to");
 
   let query = supabase
     .from("approval_requests")
-    .select("*, submitted_by_profile:profiles!approval_requests_submitted_by_fkey(full_name), deliverable:sow_deliverables(title)")
+    .select("*, submitted_by_profile:profiles!approval_requests_submitted_by_fkey(name), deliverable:sow_deliverables(title), contract:contracts(title, status)")
     .eq("organisation_id", profile.organisation_id)
     .order("created_at", { ascending: false });
 
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
 
   if (status) query = query.eq("status", status);
   if (sow_id) query = query.eq("sow_id", sow_id);
+  if (contract_id) query = query.eq("contract_id", contract_id);
   if (assigned_to) query = query.eq("assigned_to", assigned_to);
 
   const { data, error } = await query;

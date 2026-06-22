@@ -25,7 +25,7 @@ export default async function BrandDashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("organisation_id, full_name")
+    .select("organisation_id, name")
     .eq("id", user.id)
     .single();
 
@@ -47,7 +47,7 @@ export default async function BrandDashboardPage() {
     <div className="p-6 min-h-screen bg-slate-950 text-slate-100">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Brand Portal</h1>
-        <p className="text-slate-400 mt-1">Welcome, {profile.full_name ?? "Brand User"}</p>
+        <p className="text-slate-400 mt-1">Welcome, {profile.name ?? "Brand User"}</p>
       </div>
 
       {/* Summary stats */}

@@ -15,6 +15,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const sow_id = url.searchParams.get("sow_id");
+  const contract_id = url.searchParams.get("contract_id");
   const approval_request_id = url.searchParams.get("approval_request_id");
 
   let query = supabase
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false });
 
   if (sow_id) query = query.eq("sow_id", sow_id);
+  if (contract_id) query = query.eq("contract_id", contract_id);
   if (approval_request_id) query = query.eq("approval_request_id", approval_request_id);
 
   const { data, error } = await query;

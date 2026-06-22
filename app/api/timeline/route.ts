@@ -15,14 +15,18 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const sow_id = url.searchParams.get("sow_id");
-  if (!sow_id) return NextResponse.json({ error: "sow_id is required" }, { status: 400 });
+  const contract_id = url.searchParams.get("contract_id");
+  if (!sow_id && !contract_id) {
+    return NextResponse.json({ error: "sow_id or contract_id is required" }, { status: 400 });
+  }
 
-  const { data: events, error } = await supabase
+  let query = supabase
     .from("evidence_timeline")
     .select("*")
     .eq("organisation_id", profile.organisation_id)
-    .eq("sow_id", sow_id)
     .order("created_at", { ascending: true });
+  query = sow_id ? query.eq("sow_id", sow_id) : query.eq("contract_id", contract_id);
+  const { data: events, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -32,9 +36,9 @@ export async function GET(req: Request) {
   if (actorIds.length > 0) {
     const { data: actors } = await supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, name")
       .in("id", actorIds);
-    actorMap = Object.fromEntries((actors ?? []).map((a) => [a.id, a.full_name ?? "Unknown"]));
+    actorMap = Object.fromEntries((actors ?? []).map((a) => [a.id, a.name ?? "Unknown"]));
   }
 
   const enriched = (events ?? []).map((e) => ({

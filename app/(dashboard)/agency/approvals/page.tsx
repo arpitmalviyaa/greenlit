@@ -19,7 +19,7 @@ interface Approval {
   due_date: string | null;
   sow_id: string | null;
   created_at: string;
-  submitted_by_profile: { full_name: string | null } | null;
+  submitted_by_profile: { name: string | null } | null;
   deliverable: { title: string } | null;
 }
 
@@ -165,7 +165,7 @@ export default function ApprovalsPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-white truncate">{ap.title}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {ap.submitted_by_profile?.full_name ?? "Unknown"} •{" "}
+                        {ap.submitted_by_profile?.name ?? "Unknown"} •{" "}
                         {ap.sow_id ? `SOW: ${ap.sow_id.slice(0, 8)}…` : "No SOW"} •{" "}
                         {ap.due_date ? `Due: ${ap.due_date}` : "No due date"}
                       </p>

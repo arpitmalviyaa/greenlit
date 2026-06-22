@@ -22,6 +22,7 @@ export async function POST(req: Request) {
 
   const body = await req.json() as {
     sow_id?: string;
+    contract_id?: string;
     deliverable_id?: string;
     title: string;
     description?: string;
@@ -30,6 +31,22 @@ export async function POST(req: Request) {
   };
 
   if (!body.title) return NextResponse.json({ error: "title is required" }, { status: 400 });
+  if (!body.sow_id && !body.contract_id) {
+    return NextResponse.json({ error: "sow_id or contract_id is required" }, { status: 400 });
+  }
+  if (body.sow_id && body.contract_id) {
+    return NextResponse.json({ error: "Choose either sow_id or contract_id" }, { status: 400 });
+  }
+
+  if (body.contract_id) {
+    const { data: contract } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("id", body.contract_id)
+      .eq("organisation_id", profile.organisation_id)
+      .single();
+    if (!contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+  }
 
   const jurisdiction = body.jurisdiction ?? "IN";
 
@@ -59,6 +76,7 @@ export async function POST(req: Request) {
       organisation_id: profile.organisation_id,
       submitted_by: user.id,
       sow_id: body.sow_id ?? null,
+      contract_id: body.contract_id ?? null,
       deliverable_id: body.deliverable_id ?? null,
       title: body.title,
       description: body.description ?? null,

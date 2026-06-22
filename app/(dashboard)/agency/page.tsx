@@ -35,13 +35,13 @@ export default async function AgencyDashboardPage() {
     supabase.from("scope_alerts").select("id", { count: "exact", head: true }).eq("organisation_id", orgId).eq("resolved", false),
     supabase.from("exclusivity_records").select("id", { count: "exact", head: true }).eq("organisation_id", orgId).eq("status", "active"),
     supabase.from("legal_notices").select("id", { count: "exact", head: true }).eq("organisation_id", orgId).eq("resolved", false),
-    supabase.from("invoices").select("amount_total").eq("organisation_id", orgId).eq("status", "sent"),
-    supabase.from("evidence_timeline").select("id, event_type, title, actor_name, occurred_at").eq("organisation_id", orgId).order("occurred_at", { ascending: false }).limit(10),
+    supabase.from("invoices").select("total_amount").eq("organisation_id", orgId).eq("status", "sent"),
+    supabase.from("evidence_timeline").select("id, event_type, title, created_at, actor:profiles(name)").eq("organisation_id", orgId).order("created_at", { ascending: false }).limit(10),
     supabase.from("organisation_subscriptions").select("status, current_period_end, plan_id, subscription_plans(name, jurisdiction_limit)").eq("organisation_id", orgId).maybeSingle(),
     supabase.from("organisation_jurisdictions").select("jurisdiction_code").eq("organisation_id", orgId),
   ]);
 
-  const pendingInvoicesTotal = (invoicesRes.data ?? []).reduce((sum, inv) => sum + (Number(inv.amount_total) || 0), 0);
+  const pendingInvoicesTotal = (invoicesRes.data ?? []).reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
 
   const stats = {
     activeSows: sowsRes.count ?? 0,
@@ -66,8 +66,8 @@ export default async function AgencyDashboardPage() {
     id: string;
     event_type: string;
     title: string;
-    actor_name: string | null;
-    occurred_at: string;
+    actor: Array<{ name: string | null }>;
+    created_at: string;
   }>;
 
   return (
@@ -130,7 +130,7 @@ export default async function AgencyDashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-800 truncate">{event.title}</p>
                   <p className="text-xs text-gray-400">
-                    {event.actor_name ?? "System"} · {new Date(event.occurred_at).toLocaleDateString()}
+                    {event.actor[0]?.name ?? "System"} · {new Date(event.created_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>

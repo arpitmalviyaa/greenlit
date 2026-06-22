@@ -31,9 +31,15 @@ export async function POST(req: Request) {
   // Fetch existing approval
   const { data: existing } = await service
     .from("approval_requests")
-    .select("deliverable_id")
+    .select("deliverable_id, organisation_id, assigned_to")
     .eq("id", body.approval_id)
     .single();
+  if (!existing || existing.organisation_id !== profile.organisation_id) {
+    return NextResponse.json({ error: "Approval not found" }, { status: 404 });
+  }
+  if (profile.role === "brand" && existing.assigned_to !== user.id) {
+    return NextResponse.json({ error: "Approval not assigned to you" }, { status: 403 });
+  }
 
   const updatePayload: Record<string, unknown> = {
     status: body.status,
@@ -49,6 +55,7 @@ export async function POST(req: Request) {
     .from("approval_requests")
     .update(updatePayload)
     .eq("id", body.approval_id)
+    .eq("organisation_id", profile.organisation_id)
     .select()
     .single();
 

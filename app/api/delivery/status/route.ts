@@ -11,14 +11,15 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const sow_id = searchParams.get("sow_id");
-  if (!sow_id) return NextResponse.json({ error: "sow_id required" }, { status: 400 });
+  const contract_id = searchParams.get("contract_id");
+  if (!sow_id && !contract_id) return NextResponse.json({ error: "sow_id or contract_id required" }, { status: 400 });
 
-  const { data } = await supabase
+  let query = supabase
     .from("delivery_locks")
     .select("*")
-    .eq("sow_id", sow_id)
-    .eq("organisation_id", profile.organisation_id)
-    .single();
+    .eq("organisation_id", profile.organisation_id);
+  query = sow_id ? query.eq("sow_id", sow_id) : query.eq("contract_id", contract_id);
+  const { data } = await query.maybeSingle();
 
   return NextResponse.json({ lock: data ?? null });
 }

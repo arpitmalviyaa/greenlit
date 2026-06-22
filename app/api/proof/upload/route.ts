@@ -16,12 +16,13 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const approval_request_id = formData.get("approval_request_id") as string | null;
   const sow_id = formData.get("sow_id") as string;
+  const contract_id = formData.get("contract_id") as string;
   const entry_type = formData.get("entry_type") as string;
   const title = formData.get("title") as string;
   const file = formData.get("file") as File | null;
 
-  if (!sow_id || !entry_type || !title) {
-    return NextResponse.json({ error: "sow_id, entry_type, title are required" }, { status: 400 });
+  if ((!sow_id && !contract_id) || (sow_id && contract_id) || !entry_type || !title) {
+    return NextResponse.json({ error: "exactly one of sow_id or contract_id, plus entry_type and title, is required" }, { status: 400 });
   }
 
   let file_path: string | null = null;
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
   if (file) {
     const segment = approval_request_id ? approval_request_id : "general";
     const fileName = `${Date.now()}_${file.name}`;
-    const storagePath = `${profile.organisation_id}/${sow_id}/${segment}/${fileName}`;
+    const contextId = contract_id || sow_id;
+    const storagePath = `${profile.organisation_id}/${contextId}/${segment}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("proof-vault")
@@ -45,7 +47,8 @@ export async function POST(req: Request) {
     .insert({
       organisation_id: profile.organisation_id,
       approval_request_id: approval_request_id ?? null,
-      sow_id,
+      sow_id: sow_id || null,
+      contract_id: contract_id || null,
       entry_type: entry_type as "screenshot" | "video" | "document" | "url_capture" | "metric_report",
       title,
       file_path,

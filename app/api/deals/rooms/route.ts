@@ -39,12 +39,22 @@ export async function POST(req: Request) {
   const body = await req.json() as {
     creator_id?: string;
     counterparty_name?: string;
+    contract_id?: string;
     title: string;
     jurisdiction?: string;
   };
 
   if (!body.title?.trim()) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
+  }
+  if (body.contract_id) {
+    const { data: contract } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("id", body.contract_id)
+      .eq("organisation_id", profile.organisation_id)
+      .single();
+    if (!contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 });
   }
 
   const service = await createServiceClient();
@@ -54,6 +64,7 @@ export async function POST(req: Request) {
       organisation_id: profile.organisation_id,
       creator_id: body.creator_id ?? null,
       counterparty_name: body.counterparty_name?.trim() || null,
+      contract_id: body.contract_id ?? null,
       title: body.title.trim(),
       jurisdiction: body.jurisdiction ?? "IN",
       created_by: user.id,
