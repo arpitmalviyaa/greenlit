@@ -39,6 +39,18 @@ export default function LoginPage() {
       return;
     }
 
+    const { data: platformAdmin } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (platformAdmin) {
+      router.push("/master");
+      router.refresh();
+      return;
+    }
+
     // Fetch profile to determine redirect
     const { data: profile } = await supabase
       .from("profiles")
@@ -63,22 +75,22 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="border-slate-700 bg-slate-800/50 backdrop-blur text-white">
+    <Card className="border-white/15 bg-black text-white shadow-none">
       <CardHeader>
         <CardTitle className="text-white">Sign in</CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription className="text-zinc-500">
           Enter your credentials to access your workspace
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleLogin}>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-900/50 border border-red-700 px-4 py-3 text-sm text-red-300">
+            <div className="rounded-md border border-white/30 px-4 py-3 text-sm text-white">
               {error}
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-300">Email</Label>
+            <Label htmlFor="email" className="text-zinc-300">Email</Label>
             <Input
               id="email"
               type="email"
@@ -86,11 +98,11 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+              className="border-white/15 bg-black text-white placeholder:text-zinc-700 focus-visible:ring-white"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-slate-300">Password</Label>
+            <Label htmlFor="password" className="text-zinc-300">Password</Label>
             <Input
               id="password"
               type="password"
@@ -98,22 +110,21 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+              className="border-white/15 bg-black text-white placeholder:text-zinc-700 focus-visible:ring-white"
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button
             type="submit"
-            variant="greenlit"
-            className="w-full"
+            className="w-full bg-white text-black hover:bg-zinc-200"
             disabled={loading}
           >
             {loading ? "Signing in…" : "Sign in"}
           </Button>
-          <p className="text-sm text-slate-400 text-center">
+          <p className="text-sm text-zinc-600 text-center">
             New agency?{" "}
-            <Link href="/signup" className="text-green-400 hover:text-green-300">
+            <Link href="/signup" className="text-white hover:text-zinc-300">
               Create your workspace
             </Link>
           </p>

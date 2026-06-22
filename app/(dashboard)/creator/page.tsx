@@ -16,16 +16,26 @@ export default async function CreatorDashboardPage() {
 
   const { data: contracts, error } = await supabase
     .from("contracts")
-    .select("id, title, status, created_at, analysis_json, deal_rooms(counterparty_name)")
+    .select("id, title, status, created_at, analysis_json, risk_score, raw_text, file_name, deal_rooms(counterparty_name)")
     .eq("uploaded_by", user.id)
     .eq("organisation_id", profile.organisation_id)
     .order("created_at", { ascending: false });
+
+  const contractIds = (contracts ?? []).map((contract) => contract.id);
+  const { data: versions } = contractIds.length
+    ? await supabase
+        .from("contract_versions")
+        .select("id, contract_id, version_number, file_name, comparison_json, created_at")
+        .in("contract_id", contractIds)
+        .order("version_number", { ascending: false })
+    : { data: [] };
 
   return (
     <CreatorFourPillars
       userName={profile.name}
       userRole={profile.role}
       initialContracts={error ? [] : contracts ?? []}
+      initialVersions={versions ?? []}
     />
   );
 }
