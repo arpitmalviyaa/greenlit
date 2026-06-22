@@ -93,28 +93,62 @@ export function CreatorFourPillars({
     event.preventDefault();
     setUploading(true);
     setUploadError("");
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/counsel/upload", { method: "POST", body: form });
-    const body = await response.json() as { contract_id?: string; title?: string; error?: string };
-    if (!response.ok || !body.contract_id) {
-      setUploadError(body.error ?? "Upload failed");
-      setUploading(false);
-      return;
-    }
+    try {
+      const form = new FormData(event.currentTarget);
+      const response = await fetch("/api/counsel/upload", { method: "POST", body: form });
+      const body = await response.json() as {
+        contract_id?: string;
+        title?: string;
+        extraction_success?: boolean;
+        extraction_error?: string | null;
+        error?: string;
+      };
+      if (!response.ok || !body.contract_id) {
+        setUploadError(body.error ?? "Upload failed");
+        return;
+      }
+      if (!body.extraction_success) {
+        setUploadError(`Upload succeeded, but text extraction failed: ${body.extraction_error ?? "unknown error"}`);
+        return;
+      }
 
-    const contract: Contract = {
-      id: body.contract_id,
-      title: body.title ?? "Untitled Contract",
-      status: "pending_review",
-      created_at: new Date().toISOString(),
-      analysis_json: null,
-      deal_rooms: [],
-    };
-    setContracts((current) => [contract, ...current]);
-    setSelectedContractId(contract.id);
-    setUploadOpen(false);
-    setUploading(false);
-    router.refresh();
+      const contract: Contract = {
+        id: body.contract_id,
+        title: body.title ?? "Untitled Contract",
+        status: "pending_review",
+        created_at: new Date().toISOString(),
+        analysis_json: null,
+        deal_rooms: [],
+      };
+      setContracts((current) => [contract, ...current]);
+      setSelectedContractId(contract.id);
+
+      const analyseResponse = await fetch("/api/counsel/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract_id: contract.id, jurisdiction: "IN" }),
+      });
+      const analyseBody = await analyseResponse.json() as {
+        analysis?: Contract["analysis_json"];
+        error?: string;
+      };
+      if (!analyseResponse.ok || !analyseBody.analysis) {
+        setUploadError(analyseBody.error ?? "Contract review failed");
+        return;
+      }
+
+      setContracts((current) => current.map((item) =>
+        item.id === contract.id
+          ? { ...item, status: "reviewed", analysis_json: analyseBody.analysis! }
+          : item
+      ));
+      setUploadOpen(false);
+      router.refresh();
+    } catch {
+      setUploadError("Contract review failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function copySuggestion(text: string, key: string) {
@@ -306,7 +340,7 @@ export function CreatorFourPillars({
                 <div><Label htmlFor="contract-title" className="text-slate-300">Contract title</Label><Input id="contract-title" name="title" placeholder="Brand collaboration agreement" className="mt-2 border-slate-700 bg-slate-800" /></div>
                 <div><Label htmlFor="contract-file" className="text-slate-300">Contract file</Label><Input id="contract-file" name="file" type="file" required accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="mt-2 border-slate-700 bg-slate-800" /></div>
                 {uploadError && <p className="text-sm text-red-400">{uploadError}</p>}
-                <Button type="submit" variant="greenlit" className="w-full" disabled={uploading}><FileText className="mr-2 h-4 w-4" />{uploading ? "Uploading…" : "Upload for review"}</Button>
+                <Button type="submit" variant="greenlit" className="w-full" disabled={uploading}><FileText className="mr-2 h-4 w-4" />{uploading ? "Reviewing contract…" : "Upload for review"}</Button>
               </form>
             </CardContent>
           </Card>

@@ -28,7 +28,9 @@ function safeParse<T>(text: string): T | null {
   try {
     // Strip markdown fences if model ignores instructions
     const cleaned = text.replace(/^```json?\n?/m, "").replace(/\n?```$/m, "").trim();
-    return JSON.parse(cleaned) as T;
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    return JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned) as T;
   } catch {
     return null;
   }
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
   try {
     const extraction = await anthropic.messages.create({
       model: MODELS.HAIKU,
-      max_tokens: 800,
+      max_tokens: 4000,
       system: CONTRACT_EXTRACT_SYSTEM,
       messages: [{ role: "user", content: contractExtractUser(contract.raw_text) }],
     });
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
   try {
     const analysisResp = await anthropic.messages.create({
       model: MODELS.SONNET,
-      max_tokens: 2500,
+      max_tokens: 5000,
       system: CONTRACT_ANALYSE_SYSTEM,
       messages: [
         {
