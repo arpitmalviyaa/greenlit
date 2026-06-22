@@ -70,10 +70,6 @@ const AGENCY_NAV: NavItem[] = [
 
 const CREATOR_NAV: NavItem[] = [
   { label: "Dashboard", href: "/creator", icon: Home },
-  { label: "My Contracts", href: "/creator/contracts", icon: FileText },
-  { label: "Content Scanner", href: "/creator/content", icon: Shield },
-  { label: "My Rights", href: "/creator/rights", icon: Scale },
-  { label: "Exclusivity", href: "/creator/exclusivity", icon: Eye },
 ];
 
 const MANAGER_NAV: NavItem[] = [
