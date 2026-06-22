@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   const current = proposals[0].term_json as Record<string, unknown>;
   const previous = proposals[1].term_json as Record<string, unknown>;
-  const changedTerms = [...new Set([...Object.keys(previous), ...Object.keys(current)])]
+  const changedTerms = Array.from(new Set([...Object.keys(previous), ...Object.keys(current)]))
     .filter((key) => JSON.stringify(previous[key]) !== JSON.stringify(current[key]));
 
   if (changedTerms.length === 0) {
