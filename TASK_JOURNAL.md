@@ -488,3 +488,13 @@
   - `git push origin main`: rejected by GitHub because the current token cannot create/update `.github/workflows/ga.yml` without `workflow` scope.
   - No force-push attempted.
   - Next action: create a backup branch from `origin/main` with the GA-ready code/docs/migrations excluding workflow-file changes, then push that branch as `greenlit-ga-ready-no-live-deploy`.
+- Backup branch result:
+  - Created branch `greenlit-ga-ready-no-live-deploy` from `origin/main`.
+  - Applied the full GA-ready diff from local `main` excluding `.github/workflows/ga.yml`, because the available GitHub token cannot push workflow-file changes.
+  - Trimmed patch-introduced trailing blank lines at EOF and verified `git diff --cached --check` passed.
+  - Created backup branch commit `94c8b14 chore: finalize greenlit production readiness without workflow update`.
+  - Pushed `greenlit-ga-ready-no-live-deploy` to `origin`.
+  - GitHub PR URL offered by remote: `https://github.com/arpitmalviyaa/greenlit/pull/new/greenlit-ga-ready-no-live-deploy`.
+  - Main was not pushed because the push was blocked by token scope, not by tests or code readiness.
+  - Live deploy was not performed because strict `npm run env:check` failed due to missing production secrets.
+- Final status: code/docs/migrations are GA-ready as far as local verification can prove; live deployment is NO-GO pending production secrets and a GitHub token with `workflow` scope if `.github/workflows/ga.yml` must land on `main`.
