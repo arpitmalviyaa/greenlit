@@ -29,11 +29,19 @@ export async function POST(req: Request) {
 
   const jurisdiction = body.jurisdiction ?? "IN";
 
+  // Resolve this creator's SOW ids first — supabase-js `.in()` takes a value
+  // array, not a query builder, so the subquery must be run separately.
+  const { data: creatorSows } = await supabase
+    .from("sows")
+    .select("id")
+    .eq("creator_id", body.creator_id);
+  const creatorSowIds = (creatorSows ?? []).map((s) => s.id);
+
   // Gather context from existing tables
   const [deliverablesRes, alertsRes, approvalsRes, scopeRes, claimsRes] = await Promise.allSettled([
     supabase.from("sow_deliverables")
       .select("status")
-      .in("sow_id", supabase.from("sows").select("id").eq("creator_id", body.creator_id) as never),
+      .in("sow_id", creatorSowIds),
     supabase.from("exclusivity_alerts")
       .select("id")
       .eq("creator_id", body.creator_id)

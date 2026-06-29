@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 async function authorised() {
@@ -15,7 +16,7 @@ export async function GET() {
   const { data, error } = await service.from("jurisdiction_corpus")
     .select("id, jurisdiction_code, content_type, title, source, source_url, last_updated, created_at")
     .order("created_at", { ascending: false }).limit(100);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/master/corpus/route.ts", { message: error.message });
   return NextResponse.json(data ?? []);
 }
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     jurisdiction_code: body.jurisdiction_code ?? "IN",
     last_updated: new Date().toISOString(),
   }).select("id, title, content_type, source, jurisdiction_code, created_at").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/master/corpus/route.ts", { message: error.message });
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -47,6 +48,6 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
   const service = await createServiceClient();
   const { error } = await service.from("jurisdiction_corpus").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/master/corpus/route.ts", { message: error.message });
   return NextResponse.json({ deleted: true });
 }

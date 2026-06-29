@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/anthropic/client";
 import { MODELS } from "@/lib/anthropic/utils";
@@ -72,6 +73,6 @@ export async function POST(req: Request) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/scope/analyse-change/route.ts", { message: error.message });
   return NextResponse.json({ request_id: data.id, impact });
 }

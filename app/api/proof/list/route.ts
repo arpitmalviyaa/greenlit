@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
   if (approval_request_id) query = query.eq("approval_request_id", approval_request_id);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/proof/list/route.ts", { message: error.message });
 
   // Generate signed URLs for file_path entries
   const entries = await Promise.all(

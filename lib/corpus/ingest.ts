@@ -1,6 +1,6 @@
 // Standalone corpus ingest scripts — NOT imported in request path.
 // Run manually or via a scheduled job.
-// TODO: Set COURTLISTENER_API_KEY, FTC_API_KEY in env before running.
+// Operator prerequisite: set COURTLISTENER_API_KEY and FTC_API_KEY before running.
 
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -20,7 +20,7 @@ async function upsertCorpus(entries: CorpusInsert[]) {
   if (error) throw error;
 }
 
-// TODO: Requires COURTLISTENER_API_KEY env var
+// Requires COURTLISTENER_API_KEY env var.
 export async function ingestCourtListener() {
   const apiKey = process.env.COURTLISTENER_API_KEY;
   if (!apiKey) throw new Error("COURTLISTENER_API_KEY not set");
@@ -47,7 +47,7 @@ export async function ingestCourtListener() {
   return entries.length;
 }
 
-// TODO: Requires public FTC guidelines page — no API key needed but rate-limit applies
+// Requires public FTC guidelines page; no API key needed, but rate-limit applies.
 export async function ingestFTCGuidelines() {
   const url = "https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking";
   const resp = await fetch(url);
@@ -69,7 +69,7 @@ export async function ingestFTCGuidelines() {
   return 1;
 }
 
-// TODO: Requires public ASA/CAP page — no API key needed but respect robots.txt
+// Requires public ASA/CAP page; no API key needed, but respect robots.txt.
 export async function ingestASACAP() {
   const url = "https://www.asa.org.uk/type/non_broadcast/code_section/02.html";
   const resp = await fetch(url);

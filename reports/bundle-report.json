@@ -1,0 +1,474 @@
+{
+  "generated_at": "2026-06-29T20:23:19.941Z",
+  "route_count": 93,
+  "largest_routes": [
+    {
+      "route": "/_app",
+      "asset_count": 0,
+      "bytes": 0
+    }
+  ],
+  "app_routes": [
+    {
+      "source": "/(auth)/login/page",
+      "route": "/login"
+    },
+    {
+      "source": "/(auth)/signup/page",
+      "route": "/signup"
+    },
+    {
+      "source": "/(dashboard)/agency/approvals/page",
+      "route": "/agency/approvals"
+    },
+    {
+      "source": "/(dashboard)/agency/counsel/page",
+      "route": "/agency/counsel"
+    },
+    {
+      "source": "/(dashboard)/agency/cross-reference/page",
+      "route": "/agency/cross-reference"
+    },
+    {
+      "source": "/(dashboard)/agency/deals/page",
+      "route": "/agency/deals"
+    },
+    {
+      "source": "/(dashboard)/agency/delivery/page",
+      "route": "/agency/delivery"
+    },
+    {
+      "source": "/(dashboard)/agency/meeting/page",
+      "route": "/agency/meeting"
+    },
+    {
+      "source": "/(dashboard)/agency/nda-scanner/page",
+      "route": "/agency/nda-scanner"
+    },
+    {
+      "source": "/(dashboard)/agency/page",
+      "route": "/agency"
+    },
+    {
+      "source": "/(dashboard)/agency/playbook/page",
+      "route": "/agency/playbook"
+    },
+    {
+      "source": "/(dashboard)/agency/scope/page",
+      "route": "/agency/scope"
+    },
+    {
+      "source": "/(dashboard)/agency/send-scanner/page",
+      "route": "/agency/send-scanner"
+    },
+    {
+      "source": "/(dashboard)/agency/term-sheets/page",
+      "route": "/agency/term-sheets"
+    },
+    {
+      "source": "/(dashboard)/agency/timeline/page",
+      "route": "/agency/timeline"
+    },
+    {
+      "source": "/(dashboard)/brand/page",
+      "route": "/brand"
+    },
+    {
+      "source": "/(dashboard)/creator/page",
+      "route": "/creator"
+    },
+    {
+      "source": "/(dashboard)/manager/page",
+      "route": "/manager"
+    },
+    {
+      "source": "/_global-error/page",
+      "route": "/_global-error"
+    },
+    {
+      "source": "/_not-found/page",
+      "route": "/_not-found"
+    },
+    {
+      "source": "/agency/onboarding/page",
+      "route": "/agency/onboarding"
+    },
+    {
+      "source": "/api/approvals/list/route",
+      "route": "/api/approvals/list"
+    },
+    {
+      "source": "/api/approvals/review/route",
+      "route": "/api/approvals/review"
+    },
+    {
+      "source": "/api/approvals/submit/route",
+      "route": "/api/approvals/submit"
+    },
+    {
+      "source": "/api/auth/callback/route",
+      "route": "/api/auth/callback"
+    },
+    {
+      "source": "/api/billing/create-subscription/route",
+      "route": "/api/billing/create-subscription"
+    },
+    {
+      "source": "/api/billing/jurisdiction-addon/route",
+      "route": "/api/billing/jurisdiction-addon"
+    },
+    {
+      "source": "/api/billing/plans/route",
+      "route": "/api/billing/plans"
+    },
+    {
+      "source": "/api/billing/status/route",
+      "route": "/api/billing/status"
+    },
+    {
+      "source": "/api/billing/webhook/route",
+      "route": "/api/billing/webhook"
+    },
+    {
+      "source": "/api/clauses/analyse/route",
+      "route": "/api/clauses/analyse"
+    },
+    {
+      "source": "/api/clauses/library/route",
+      "route": "/api/clauses/library"
+    },
+    {
+      "source": "/api/counsel/analyse/route",
+      "route": "/api/counsel/analyse"
+    },
+    {
+      "source": "/api/counsel/compare/route",
+      "route": "/api/counsel/compare"
+    },
+    {
+      "source": "/api/counsel/decode/route",
+      "route": "/api/counsel/decode"
+    },
+    {
+      "source": "/api/counsel/draft/route",
+      "route": "/api/counsel/draft"
+    },
+    {
+      "source": "/api/counsel/file/route",
+      "route": "/api/counsel/file"
+    },
+    {
+      "source": "/api/counsel/redflags/route",
+      "route": "/api/counsel/redflags"
+    },
+    {
+      "source": "/api/counsel/silent-changes/route",
+      "route": "/api/counsel/silent-changes"
+    },
+    {
+      "source": "/api/counsel/upload/route",
+      "route": "/api/counsel/upload"
+    },
+    {
+      "source": "/api/cross-ref/query/route",
+      "route": "/api/cross-ref/query"
+    },
+    {
+      "source": "/api/deals/[room_id]/messages/route",
+      "route": "/api/deals/[room_id]/messages"
+    },
+    {
+      "source": "/api/deals/analyse-term/route",
+      "route": "/api/deals/analyse-term"
+    },
+    {
+      "source": "/api/deals/rooms/route",
+      "route": "/api/deals/rooms"
+    },
+    {
+      "source": "/api/deals/suggest-counter/route",
+      "route": "/api/deals/suggest-counter"
+    },
+    {
+      "source": "/api/delivery/lock/route",
+      "route": "/api/delivery/lock"
+    },
+    {
+      "source": "/api/delivery/status/route",
+      "route": "/api/delivery/status"
+    },
+    {
+      "source": "/api/email/ingest/route",
+      "route": "/api/email/ingest"
+    },
+    {
+      "source": "/api/final-check/start/route",
+      "route": "/api/final-check/start"
+    },
+    {
+      "source": "/api/final-check/upload/route",
+      "route": "/api/final-check/upload"
+    },
+    {
+      "source": "/api/health/route",
+      "route": "/api/health"
+    },
+    {
+      "source": "/api/jurisdiction/add/route",
+      "route": "/api/jurisdiction/add"
+    },
+    {
+      "source": "/api/jurisdiction/list/route",
+      "route": "/api/jurisdiction/list"
+    },
+    {
+      "source": "/api/master/corpus/route",
+      "route": "/api/master/corpus"
+    },
+    {
+      "source": "/api/master/overview/route",
+      "route": "/api/master/overview"
+    },
+    {
+      "source": "/api/meeting/[id]/route",
+      "route": "/api/meeting/[id]"
+    },
+    {
+      "source": "/api/meeting/analyse/route",
+      "route": "/api/meeting/analyse"
+    },
+    {
+      "source": "/api/meeting/list/route",
+      "route": "/api/meeting/list"
+    },
+    {
+      "source": "/api/meeting/term-sheet/route",
+      "route": "/api/meeting/term-sheet"
+    },
+    {
+      "source": "/api/nda/scan/route",
+      "route": "/api/nda/scan"
+    },
+    {
+      "source": "/api/org/create/route",
+      "route": "/api/org/create"
+    },
+    {
+      "source": "/api/playbook/entries/[id]/route",
+      "route": "/api/playbook/entries/[id]"
+    },
+    {
+      "source": "/api/playbook/entries/route",
+      "route": "/api/playbook/entries"
+    },
+    {
+      "source": "/api/playbook/generate/route",
+      "route": "/api/playbook/generate"
+    },
+    {
+      "source": "/api/proof/list/route",
+      "route": "/api/proof/list"
+    },
+    {
+      "source": "/api/proof/upload/route",
+      "route": "/api/proof/upload"
+    },
+    {
+      "source": "/api/ready/route",
+      "route": "/api/ready"
+    },
+    {
+      "source": "/api/scope/alerts/route",
+      "route": "/api/scope/alerts"
+    },
+    {
+      "source": "/api/scope/analyse-change/route",
+      "route": "/api/scope/analyse-change"
+    },
+    {
+      "source": "/api/scope/change-requests/route",
+      "route": "/api/scope/change-requests"
+    },
+    {
+      "source": "/api/scope/detect/route",
+      "route": "/api/scope/detect"
+    },
+    {
+      "source": "/api/send/counsel/route",
+      "route": "/api/send/counsel"
+    },
+    {
+      "source": "/api/send/rewrite/route",
+      "route": "/api/send/rewrite"
+    },
+    {
+      "source": "/api/send/scan/route",
+      "route": "/api/send/scan"
+    },
+    {
+      "source": "/api/term-sheets/[id]/route",
+      "route": "/api/term-sheets/[id]"
+    },
+    {
+      "source": "/api/term-sheets/list/route",
+      "route": "/api/term-sheets/list"
+    },
+    {
+      "source": "/api/timeline/route",
+      "route": "/api/timeline"
+    },
+    {
+      "source": "/api/vendor/shield/route",
+      "route": "/api/vendor/shield"
+    },
+    {
+      "source": "/api/workspace/contracts/[contract_id]/archive/route",
+      "route": "/api/workspace/contracts/[contract_id]/archive"
+    },
+    {
+      "source": "/api/workspace/contracts/[contract_id]/comments/route",
+      "route": "/api/workspace/contracts/[contract_id]/comments"
+    },
+    {
+      "source": "/api/workspace/contracts/[contract_id]/compare/route",
+      "route": "/api/workspace/contracts/[contract_id]/compare"
+    },
+    {
+      "source": "/api/workspace/contracts/[contract_id]/restore/route",
+      "route": "/api/workspace/contracts/[contract_id]/restore"
+    },
+    {
+      "source": "/api/workspace/contracts/[contract_id]/versions/route",
+      "route": "/api/workspace/contracts/[contract_id]/versions"
+    },
+    {
+      "source": "/api/workspace/creator/route",
+      "route": "/api/workspace/creator"
+    },
+    {
+      "source": "/api/workspace/manager/route",
+      "route": "/api/workspace/manager"
+    },
+    {
+      "source": "/api/workspace/notifications/read/route",
+      "route": "/api/workspace/notifications/read"
+    },
+    {
+      "source": "/api/workspace/notifications/route",
+      "route": "/api/workspace/notifications"
+    },
+    {
+      "source": "/api/workspace/search/route",
+      "route": "/api/workspace/search"
+    },
+    {
+      "source": "/api/workspace/timeline/route",
+      "route": "/api/workspace/timeline"
+    },
+    {
+      "source": "/auth/callback/route",
+      "route": "/auth/callback"
+    },
+    {
+      "source": "/master/page",
+      "route": "/master"
+    },
+    {
+      "source": "/page",
+      "route": "/"
+    },
+    {
+      "source": "/pricing/page",
+      "route": "/pricing"
+    }
+  ],
+  "static_js_bytes": 1136727,
+  "largest_static_chunks": [
+    {
+      "path": ".next/static/chunks/15e9jcvs8jln3.js",
+      "bytes": 241374
+    },
+    {
+      "path": ".next/static/chunks/2nykiepra7i1k.js",
+      "bytes": 227537
+    },
+    {
+      "path": ".next/static/chunks/0_bdivyfur2bb.js",
+      "bytes": 138007
+    },
+    {
+      "path": ".next/static/chunks/0cz1d0mv5g_q7.js",
+      "bytes": 112594
+    },
+    {
+      "path": ".next/static/chunks/14mrh2-p_w84d.js",
+      "bytes": 54646
+    },
+    {
+      "path": ".next/static/chunks/27jktro2p5rq9.js",
+      "bytes": 44414
+    },
+    {
+      "path": ".next/static/chunks/2hcq1h5h21ls3.js",
+      "bytes": 41717
+    },
+    {
+      "path": ".next/static/chunks/09s72r58ijxwx.js",
+      "bytes": 30836
+    },
+    {
+      "path": ".next/static/chunks/2-lzghqjv_75g.js",
+      "bytes": 27397
+    },
+    {
+      "path": ".next/static/chunks/2wpxuk7102b7i.js",
+      "bytes": 22482
+    },
+    {
+      "path": ".next/static/chunks/36doft7r5c1o9.js",
+      "bytes": 20484
+    },
+    {
+      "path": ".next/static/chunks/0y5kxyhf41hzs.js",
+      "bytes": 17543
+    },
+    {
+      "path": ".next/static/chunks/09bth34dfnpg1.js",
+      "bytes": 15261
+    },
+    {
+      "path": ".next/static/chunks/1s8j3qyq7rbga.js",
+      "bytes": 14750
+    },
+    {
+      "path": ".next/static/chunks/08u8qpjmft3u9.js",
+      "bytes": 11928
+    },
+    {
+      "path": ".next/static/chunks/42nfitet8a-n3.js",
+      "bytes": 11381
+    },
+    {
+      "path": ".next/static/chunks/2urd-ir9i_iej.js",
+      "bytes": 11251
+    },
+    {
+      "path": ".next/static/chunks/1xplrkaja8mz5.js",
+      "bytes": 11087
+    },
+    {
+      "path": ".next/static/chunks/2lo6cuvbql297.js",
+      "bytes": 10908
+    },
+    {
+      "path": ".next/static/chunks/0m_1dvhcfw7i_.js",
+      "bytes": 10760
+    }
+  ],
+  "shared_asset_count": 0,
+  "duplicate_packages": [],
+  "notes": [
+    "Next.js build manifests verify production tree-shaking/code splitting at the route asset level.",
+    "Dynamic imports are audited by build output; no manual chunk splitting was added for GA."
+  ]
+}

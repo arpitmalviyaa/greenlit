@@ -27,8 +27,11 @@ export async function POST(req: Request) {
     .single();
 
   if (!plan) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+  const razorpayPlanId = razorpayPlanIdFor(String(plan.name));
+  if (!razorpayPlanId) {
+    return NextResponse.json({ error: "Billing plan is not configured" }, { status: 503 });
+  }
 
-  // Create Razorpay subscription via REST API
   const credentials = Buffer.from(`${RAZORPAY_KEY}:${RAZORPAY_SECRET}`).toString("base64");
   const razorpayRes = await fetch("https://api.razorpay.com/v1/subscriptions", {
     method: "POST",
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
       Authorization: `Basic ${credentials}`,
     },
     body: JSON.stringify({
-      plan_id: `plan_${plan.name}`, // placeholder — configure real plan IDs in Razorpay dashboard
+      plan_id: razorpayPlanId,
       quantity: 1,
       total_count: 12,
       notify_info: {
@@ -47,20 +50,17 @@ export async function POST(req: Request) {
     }),
   });
 
-  let subscription_id = `local_${Date.now()}`;
-  let short_url = "";
-
-  if (razorpayRes.ok) {
-    const rzSub = await razorpayRes.json() as { id: string; short_url?: string };
-    subscription_id = rzSub.id;
-    short_url = rzSub.short_url ?? "";
+  if (!razorpayRes.ok) {
+    return NextResponse.json({ error: "Billing provider unavailable" }, { status: 502 });
   }
+  const rzSub = await razorpayRes.json() as { id?: string; short_url?: string };
+  if (!rzSub.id) return NextResponse.json({ error: "Billing provider returned an invalid subscription" }, { status: 502 });
 
   const serviceClient = await createServiceClient();
   await serviceClient.from("organisation_subscriptions").upsert({
     organisation_id: profile.organisation_id,
     plan_id: body.plan_id,
-    razorpay_subscription_id: subscription_id,
+    razorpay_subscription_id: rzSub.id,
     status: "trialing",
     current_period_start: new Date().toISOString(),
     current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -72,5 +72,11 @@ export async function POST(req: Request) {
     metadata_json: { plan_name: plan.name, plan_id: body.plan_id },
   });
 
-  return NextResponse.json({ subscription_id, razorpay_key_id: RAZORPAY_KEY, short_url });
+  return NextResponse.json({ subscription_id: rzSub.id, razorpay_key_id: RAZORPAY_KEY, short_url: rzSub.short_url ?? "" });
+}
+
+function razorpayPlanIdFor(planName: string): string | null {
+  const key = `RAZORPAY_PLAN_ID_${planName.toUpperCase()}`;
+  const value = process.env[key];
+  return value && value.trim() ? value : null;
 }

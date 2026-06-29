@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(
@@ -23,7 +24,7 @@ export async function GET(
     .eq("deal_room_id", room_id)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/deals/[room_id]/messages/route.ts", { message: error.message });
 
   return NextResponse.json({ messages: data ?? [] });
 }
@@ -73,7 +74,7 @@ export async function POST(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/deals/[room_id]/messages/route.ts", { message: error.message });
 
   // Auto-analyse if term_proposal
   let analysis = null;

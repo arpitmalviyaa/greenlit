@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   if (deal_room_id) query = query.eq("deal_room_id", deal_room_id);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/scope/change-requests/route.ts", { message: error.message });
   return NextResponse.json({ requests: data ?? [] });
 }
 
@@ -46,6 +47,6 @@ export async function PATCH(req: Request) {
     .select("id, status")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/scope/change-requests/route.ts", { message: error.message });
   return NextResponse.json({ request: data });
 }

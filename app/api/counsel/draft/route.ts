@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/anthropic/client";
 import { MODELS } from "@/lib/anthropic/utils";
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     .select("id, clause_index, direction, source_text, generated_text, tone, channel, created_at")
     .eq("contract_id", contractId)
     .order("created_at", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/counsel/draft/route.ts", { message: error.message });
   return NextResponse.json(data ?? []);
 }
 

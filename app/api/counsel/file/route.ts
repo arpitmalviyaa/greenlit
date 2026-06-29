@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 function storagePath(fileUrl: string) {
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
 
   const service = await createServiceClient();
   const { data, error } = await service.storage.from("contracts").createSignedUrl(path, 60 * 10);
-  if (error || !data) return NextResponse.json({ error: error?.message ?? "Could not sign file" }, { status: 500 });
+  if (error || !data) return internalError("app/api/counsel/file/route.ts", { message: error?.message ?? "Could not sign file" });
 
   return NextResponse.json({ url: data.signedUrl, file_name: contract.file_name });
 }

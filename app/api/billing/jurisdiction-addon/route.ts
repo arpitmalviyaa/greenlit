@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
   });
 
   if (error && !error.message.includes("duplicate")) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("app/api/billing/jurisdiction-addon/route.ts", { message: error.message });
   }
 
   await serviceClient.from("billing_events").insert({

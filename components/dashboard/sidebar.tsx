@@ -40,33 +40,27 @@ type NavItem = {
   badge?: string;
 };
 
+// Greenlit narrowed to 4 pillars (2026-06-19 decision). Orphaned features archived;
+// nav below reflects only the live pillar surface.
 const AGENCY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/agency", icon: Home },
+  // Contract Review
   { label: "Counsel", href: "/agency/counsel", icon: FileText },
-  { label: "Content Shield", href: "/agency/content", icon: Shield },
-  { label: "Claims", href: "/agency/claims", icon: Zap },
-  { label: "SOW Builder", href: "/agency/sow", icon: FileText },
+  { label: "NDA Scanner", href: "/agency/nda-scanner", icon: Eye },
+  { label: "Send Scanner", href: "/agency/send-scanner", icon: Send },
+  // Negotiation Assistant
+  { label: "Deal Rooms", href: "/agency/deals", icon: MessageSquare },
+  { label: "Term Sheets", href: "/agency/term-sheets", icon: FileText },
   { label: "Scope Monitor", href: "/agency/scope", icon: Package },
+  { label: "Meeting Counsel", href: "/agency/meeting", icon: Mic },
+  // Final Contract Check
   { label: "Delivery", href: "/agency/delivery", icon: CheckSquare },
   { label: "Approvals", href: "/agency/approvals", icon: CheckSquare },
-  { label: "Proof Vault", href: "/agency/approvals", icon: Shield },
   { label: "Timeline", href: "/agency/timeline", icon: Clock },
-  { label: "Deal Rooms", href: "/agency/deals", icon: MessageSquare },
-  { label: "Exclusivity", href: "/agency/exclusivity", icon: Eye },
-  { label: "Whitelisting", href: "/agency/whitelisting", icon: Shield },
-  { label: "Rights Pricing", href: "/agency/rights", icon: Scale },
-  { label: "Creator Passport", href: "/agency/passport", icon: Users },
-  { label: "Send Scanner", href: "/agency/send-scanner", icon: Send },
-  { label: "Meeting Counsel", href: "/agency/meeting", icon: Mic },
-  { label: "Term Sheets", href: "/agency/term-sheets", icon: FileText },
-  { label: "Legal Notices", href: "/agency/notices", icon: AlertTriangle },
-  { label: "Crisis Room", href: "/agency/crisis", icon: AlertTriangle },
-  { label: "IP & Takedowns", href: "/agency/ip", icon: Shield },
+  // Knowledge Repository
   { label: "Legal Playbook", href: "/agency/playbook", icon: BookOpen },
-  { label: "NDA Scanner", href: "/agency/nda-scanner", icon: Eye },
-  { label: "AI & Vendor Risk", href: "/agency/ai-risk", icon: Bot },
   { label: "Cross-Reference", href: "/agency/cross-reference", icon: Globe },
-  { label: "Adversary Lens", href: "/agency/adversary", icon: Crosshair },
+  { label: "Proof Vault", href: "/agency/approvals", icon: Shield },
 ];
 
 const CREATOR_NAV: NavItem[] = [

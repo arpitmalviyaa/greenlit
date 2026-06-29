@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(_req: Request) {
@@ -17,7 +18,7 @@ export async function GET(_req: Request) {
     .order("severity", { ascending: true })
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/scope/alerts/route.ts", { message: error.message });
   return NextResponse.json({ alerts: data ?? [] });
 }
 
@@ -39,6 +40,6 @@ export async function PATCH(req: Request) {
     .eq("id", body.alert_id)
     .eq("organisation_id", profile.organisation_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/scope/alerts/route.ts", { message: error.message });
   return NextResponse.json({ ok: true });
 }

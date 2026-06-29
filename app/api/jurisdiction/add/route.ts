@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { JURISDICTION_MAP } from "@/lib/utils/jurisdictions";
 
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "Jurisdiction already added" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("app/api/jurisdiction/add/route.ts", { message: error.message });
   }
 
   const { data } = await serviceSupabase
