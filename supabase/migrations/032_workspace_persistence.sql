@@ -1,8 +1,10 @@
+create extension if not exists "uuid-ossp";
+
 alter table contracts add column if not exists archived_at timestamptz;
 alter table contracts add column if not exists archived_by uuid references profiles(id);
 
 create table if not exists negotiation_memory (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   deal_room_id uuid references deal_rooms(id) on delete cascade,
   contract_id uuid references contracts(id) on delete cascade,
@@ -15,7 +17,7 @@ create table if not exists negotiation_memory (
 );
 
 create table if not exists creator_clause_preferences (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   creator_id uuid references creators(id) on delete cascade,
   profile_id uuid references profiles(id),
@@ -29,7 +31,7 @@ create table if not exists creator_clause_preferences (
 );
 
 create table if not exists workspace_assignments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid references contracts(id) on delete cascade,
   deal_room_id uuid references deal_rooms(id) on delete cascade,
@@ -44,7 +46,7 @@ create table if not exists workspace_assignments (
 );
 
 create table if not exists review_metrics (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid references contracts(id) on delete cascade,
   reviewer_id uuid references profiles(id),

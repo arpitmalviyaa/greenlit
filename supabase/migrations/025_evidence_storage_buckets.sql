@@ -26,6 +26,7 @@ ON CONFLICT (id) DO NOTHING;
 --   (storage.foldername(name))[1] = the caller's organisation_id
 
 -- claim-evidence -----------------------------------------------------------------
+DROP POLICY IF EXISTS "claim-evidence org read" ON storage.objects;
 CREATE POLICY "claim-evidence org read"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -36,6 +37,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "claim-evidence org write" ON storage.objects;
 CREATE POLICY "claim-evidence org write"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -46,6 +48,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "claim-evidence org delete" ON storage.objects;
 CREATE POLICY "claim-evidence org delete"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -57,6 +60,7 @@ USING (
 );
 
 -- ip-evidence --------------------------------------------------------------------
+DROP POLICY IF EXISTS "ip-evidence org read" ON storage.objects;
 CREATE POLICY "ip-evidence org read"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -67,6 +71,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "ip-evidence org write" ON storage.objects;
 CREATE POLICY "ip-evidence org write"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -77,6 +82,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "ip-evidence org delete" ON storage.objects;
 CREATE POLICY "ip-evidence org delete"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -88,6 +94,7 @@ USING (
 );
 
 -- proof-vault --------------------------------------------------------------------
+DROP POLICY IF EXISTS "proof-vault org read" ON storage.objects;
 CREATE POLICY "proof-vault org read"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -98,6 +105,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "proof-vault org write" ON storage.objects;
 CREATE POLICY "proof-vault org write"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -108,6 +116,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "proof-vault org delete" ON storage.objects;
 CREATE POLICY "proof-vault org delete"
 ON storage.objects FOR DELETE
 TO authenticated

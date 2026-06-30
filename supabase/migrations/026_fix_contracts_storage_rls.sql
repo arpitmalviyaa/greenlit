@@ -36,6 +36,10 @@ DROP POLICY IF EXISTS "Users can upload their own contracts" ON storage.objects;
 DROP POLICY IF EXISTS "Users can read their own contracts"   ON storage.objects;
 DROP POLICY IF EXISTS "Users can update their own contracts" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete their own contracts" ON storage.objects;
+DROP POLICY IF EXISTS "contracts org read"                   ON storage.objects;
+DROP POLICY IF EXISTS "contracts org write"                  ON storage.objects;
+DROP POLICY IF EXISTS "contracts org update"                 ON storage.objects;
+DROP POLICY IF EXISTS "contracts org delete"                 ON storage.objects;
 
 -- ── Recreate as org-scoped policies (first path segment = caller's org) ───────
 CREATE POLICY "contracts org read"

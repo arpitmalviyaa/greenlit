@@ -1,5 +1,7 @@
+create extension if not exists "uuid-ossp";
+
 create table if not exists compatibility_runs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid references contracts(id) on delete cascade,
   contract_version_id uuid,
@@ -18,7 +20,7 @@ create table if not exists compatibility_runs (
 );
 
 create table if not exists golden_documents (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid references organisations(id) on delete cascade,
   name text not null,
   expected_features jsonb not null default '{}'::jsonb,

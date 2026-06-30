@@ -1,3 +1,4 @@
+create extension if not exists "uuid-ossp";
 create extension if not exists pg_trgm;
 
 alter table organisations add column if not exists deleted_at timestamptz;
@@ -9,7 +10,7 @@ alter table contracts add column if not exists file_size_bytes bigint;
 alter table contracts add column if not exists content_sha256 text;
 
 create table if not exists brands (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   name text not null,
   website text,
@@ -19,7 +20,7 @@ create table if not exists brands (
 );
 
 create table if not exists contract_versions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   version_number integer not null,
@@ -32,8 +33,14 @@ create table if not exists contract_versions (
   unique (contract_id, version_number)
 );
 
+alter table contract_versions add column if not exists organisation_id uuid references organisations(id) on delete cascade;
+alter table contract_versions add column if not exists content_sha256 text;
+alter table contract_versions add column if not exists compatibility_status text not null default 'pending';
+alter table contract_versions add column if not exists created_by uuid references profiles(id);
+alter table contract_versions add column if not exists deleted_at timestamptz;
+
 create table if not exists contract_reviews (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   version_id uuid references contract_versions(id),
@@ -44,7 +51,7 @@ create table if not exists contract_reviews (
 );
 
 create table if not exists contract_clauses (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   version_id uuid references contract_versions(id),
@@ -57,7 +64,7 @@ create table if not exists contract_clauses (
 );
 
 create table if not exists contract_comments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   version_id uuid references contract_versions(id),
@@ -70,7 +77,7 @@ create table if not exists contract_comments (
 );
 
 create table if not exists contract_revisions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   previous_version_id uuid references contract_versions(id),
@@ -82,7 +89,7 @@ create table if not exists contract_revisions (
 );
 
 create table if not exists contract_exports (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   version_id uuid references contract_versions(id),
@@ -94,7 +101,7 @@ create table if not exists contract_exports (
 );
 
 create table if not exists audit_logs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   actor_id uuid references profiles(id),
   action text not null,
@@ -107,7 +114,7 @@ create table if not exists audit_logs (
 );
 
 create table if not exists background_jobs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   kind text not null check (kind in ('document_parsing', 'review_generation', 'export', 'email', 'search_indexing', 'analytics', 'notifications')),
   status text not null default 'queued' check (status in ('queued', 'running', 'succeeded', 'failed', 'dead')),
@@ -124,7 +131,7 @@ create table if not exists background_jobs (
 );
 
 create table if not exists notifications (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   profile_id uuid references profiles(id),
   kind text not null,
@@ -135,7 +142,7 @@ create table if not exists notifications (
 );
 
 create table if not exists search_index (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   entity_type text not null check (entity_type in ('contracts', 'brands', 'creators', 'clauses', 'comments', 'versions')),
   entity_id uuid not null,
@@ -149,7 +156,7 @@ create table if not exists search_index (
 );
 
 create table if not exists activity (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   actor_id uuid references profiles(id),
   contract_id uuid references contracts(id),
@@ -160,7 +167,7 @@ create table if not exists activity (
 );
 
 create table if not exists timeline (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   contract_id uuid not null references contracts(id) on delete cascade,
   event_type text not null,

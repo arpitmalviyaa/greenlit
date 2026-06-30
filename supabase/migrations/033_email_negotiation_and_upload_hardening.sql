@@ -1,5 +1,7 @@
+create extension if not exists "uuid-ossp";
+
 create table if not exists email_threads (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   provider text not null check (provider in ('manual', 'gmail', 'outlook', 'imap', 'api')),
   provider_thread_id text not null,
@@ -17,7 +19,7 @@ create table if not exists email_threads (
 );
 
 create table if not exists email_messages (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   thread_id uuid not null references email_threads(id) on delete cascade,
   provider_message_id text not null,
@@ -36,7 +38,7 @@ create table if not exists email_messages (
 );
 
 create table if not exists email_draft_replies (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references organisations(id) on delete cascade,
   thread_id uuid not null references email_threads(id) on delete cascade,
   contract_id uuid references contracts(id) on delete set null,
