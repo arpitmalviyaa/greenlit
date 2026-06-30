@@ -7,7 +7,7 @@ import { publicSupabaseEnv, StartupConfigError } from "@/lib/env";
 // Role-based routing and profile lookups live in server layouts, not here,
 // to stay well within Edge Runtime CPU limits.
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/invite", "/pricing"];
+const PUBLIC_ROUTES = ["/api/health", "/api/ready", "/login", "/signup", "/auth/callback", "/invite", "/pricing"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
