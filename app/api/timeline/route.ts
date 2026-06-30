@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
   query = sow_id ? query.eq("sow_id", sow_id) : query.eq("contract_id", contract_id);
   const { data: events, error } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/timeline/route.ts", { message: error.message });
 
   // Fetch actor names separately
   const actorIds = Array.from(new Set((events ?? []).map((e) => e.actor_id).filter(Boolean))) as string[];

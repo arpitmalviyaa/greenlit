@@ -144,10 +144,10 @@ export default async function AgencyDashboardPage() {
       <div>
         <h2 className="font-semibold text-gray-800 text-sm mb-3">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <QuickAction href="/agency/content" icon={Shield} label="Scan Content" />
           <QuickAction href="/agency/counsel" icon={FileText} label="Upload Contract" />
-          <QuickAction href="/agency/sow" icon={Package} label="New SOW" />
-          <QuickAction href="/agency/notices" icon={AlertTriangle} label="Triage Notice" />
+          <QuickAction href="/agency/deals" icon={Shield} label="Deal Room" />
+          <QuickAction href="/agency/approvals" icon={CheckSquare} label="Review Approvals" />
+          <QuickAction href="/agency/playbook" icon={Package} label="Legal Playbook" />
         </div>
       </div>
     </div>

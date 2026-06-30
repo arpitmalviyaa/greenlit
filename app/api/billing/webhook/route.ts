@@ -6,17 +6,21 @@ export async function POST(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("X-Razorpay-Signature") ?? "";
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET ?? "";
+  const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+  const errorId = () => crypto.randomUUID();
 
-  // Verify Razorpay webhook signature
-  if (webhookSecret) {
-    const expectedSig = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(body)
-      .digest("hex");
-    if (expectedSig !== signature) {
-      console.error("Razorpay webhook signature mismatch");
-      return NextResponse.json({ ok: false }, { status: 200 }); // always 200
-    }
+  if (!webhookSecret) {
+    console.error("billing_webhook_not_configured", { request_id: requestId, error_id: errorId() });
+    return NextResponse.json({ ok: false, code: "WEBHOOK_NOT_CONFIGURED" }, { status: 503 });
+  }
+
+  const expectedSig = crypto
+    .createHmac("sha256", webhookSecret)
+    .update(body)
+    .digest("hex");
+  if (!safeEqual(expectedSig, signature)) {
+    console.warn("billing_webhook_signature_mismatch", { request_id: requestId, error_id: errorId() });
+    return NextResponse.json({ ok: false }, { status: 200 });
   }
 
   let event: { event: string; payload?: Record<string, unknown> };
@@ -87,9 +91,19 @@ export async function POST(req: Request) {
       }
     }
   } catch (err) {
-    console.error("Webhook processing error:", err);
+    console.error("billing_webhook_processing_failed", {
+      request_id: requestId,
+      error_id: errorId(),
+      message: err instanceof Error ? err.message : "unknown error",
+    });
     // Still return 200 — never let webhook errors cascade
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });
+}
+
+function safeEqual(expected: string, actual: string): boolean {
+  const left = Buffer.from(expected);
+  const right = Buffer.from(actual);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
 }

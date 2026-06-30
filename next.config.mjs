@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["@anthropic-ai/sdk", "pdf-parse", "mammoth"],
+  serverExternalPackages: ["@anthropic-ai/sdk", "pdf-parse", "mammoth"],
+  turbopack: {
+    root: process.cwd(),
   },
 };
 

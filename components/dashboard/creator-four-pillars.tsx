@@ -287,14 +287,7 @@ export function CreatorFourPillars({
                 {selectedContract && <button className={secondary} onClick={() => void downloadContract(selectedContract.id)}><Download className="mr-2 h-4 w-4" />Download</button>}
               </div>
               <article className="h-[650px] overflow-y-auto bg-white px-8 py-10 font-serif text-[15px] leading-7 text-zinc-950 md:px-12">
-                {!documentQuery.trim() && selectedContract?.document_html ? (
-                  <div
-                    className="[&_h1]:mb-6 [&_h1]:text-2xl [&_h2]:mb-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h3]:mb-3 [&_h3]:mt-6 [&_li]:mb-2 [&_ol]:mb-5 [&_ol]:ml-6 [&_ol]:list-decimal [&_p]:mb-4 [&_table]:mb-5 [&_table]:w-full [&_td]:border [&_td]:border-zinc-300 [&_td]:p-2 [&_th]:border [&_th]:border-zinc-300 [&_th]:p-2 [&_ul]:mb-5 [&_ul]:ml-6 [&_ul]:list-disc"
-                    dangerouslySetInnerHTML={{ __html: selectedContract.document_html }}
-                  />
-                ) : (
-                  <div className="whitespace-pre-wrap">{visibleText || "Extracted document text is unavailable."}</div>
-                )}
+                <div className="whitespace-pre-wrap">{visibleText || "Extracted document text is unavailable."}</div>
               </article>
             </div>
 

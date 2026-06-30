@@ -6,8 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "lint": "eslint app components lib proxy.ts instrumentation.ts",
+    "type-check": "tsc --noEmit",
+    "test:phase24-25": "node --test tests/phase24-25.test.mjs",
+    "test:phase26-28": "node --test tests/phase26-28.test.mjs",
+    "test:phase29-30": "node --test tests/phase29-30.test.mjs",
+    "test:phases": "npm run test:phase24-25 && npm run test:phase26-28 && npm run test:phase29-30",
+    "test:unit": "npm run test:phase24-25",
+    "test:integration": "npm run test:phase26-28 && npm run test:phase29-30",
+    "release:audit": "node scripts/release-audit.mjs",
+    "migration:audit": "node scripts/migration-audit.mjs",
+    "supabase:audit": "node scripts/supabase-audit.mjs",
+    "security:audit": "node scripts/security-audit.mjs",
+    "deps:audit": "npm audit --audit-level=high",
+    "bundle:report": "node scripts/bundle-report.mjs",
+    "performance:audit": "node scripts/performance-audit.mjs",
+    "smoke": "node scripts/smoke-tests.mjs",
+    "env:check": "node scripts/check-env.mjs",
+    "verify:nonlive": "node scripts/verify-nonlive.mjs",
+    "verify:release": "node scripts/verify-release.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -25,7 +42,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "mammoth": "^1.12.0",
-    "next": "14.2.29",
+    "next": "^16.2.9",
     "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
@@ -37,10 +54,13 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.29",
-    "postcss": "^8",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.9",
+    "postcss": "^8.5.10",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

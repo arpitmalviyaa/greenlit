@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
         .eq("organisation_id", profile.organisation_id)
         .select("*")
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return internalError("app/api/delivery/lock/route.ts", { message: error.message });
       lock = data;
     } else {
       const { data, error } = await service
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
         })
         .select("*")
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return internalError("app/api/delivery/lock/route.ts", { message: error.message });
       lock = data;
     }
 
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
         .update({ status: "approved" })
         .eq("id", contract.id)
         .eq("organisation_id", profile.organisation_id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return internalError("app/api/delivery/lock/route.ts", { message: error.message });
     }
 
     return NextResponse.json({ lock, checklist, contract_status: lockStatus === "complete" ? "approved" : contract.status });
@@ -189,7 +190,7 @@ export async function POST(req: Request) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/delivery/lock/route.ts", { message: error.message });
 
   if (lockStatus === "complete") {
     await service.from("sows").update({ status: "signed" }).eq("id", sow_id);

@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-06-29T20:23:23.417Z",
+  "environment": "local-ci",
+  "results": [
+    {
+      "name": "cold boot env validation",
+      "duration_ms": 183,
+      "budget_ms": 1500,
+      "status": 0
+    },
+    {
+      "name": "release audit latency",
+      "duration_ms": 183,
+      "budget_ms": 1500,
+      "status": 0
+    },
+    {
+      "name": "migration audit latency",
+      "duration_ms": 209,
+      "budget_ms": 1500,
+      "status": 0
+    },
+    {
+      "name": "supabase audit latency",
+      "duration_ms": 191,
+      "budget_ms": 1500,
+      "status": 0
+    },
+    {
+      "name": "security audit latency",
+      "duration_ms": 281,
+      "budget_ms": 2500,
+      "status": 0
+    },
+    {
+      "name": "contract upload/review local parser budget",
+      "duration_ms": 1141,
+      "budget_ms": 10000,
+      "status": 0
+    },
+    {
+      "name": "search/dashboard projection budget",
+      "duration_ms": 920,
+      "budget_ms": 10000,
+      "status": 0
+    }
+  ],
+  "notes": [
+    "Live API, email ingestion, and dashboard timings require deployed infrastructure and are covered by deployment smoke checks.",
+    "Local budgets protect cold boot, parser/upload-adjacent work, search projections, and audit latency from obvious regressions."
+  ]
+}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   if (assigned_to) query = query.eq("assigned_to", assigned_to);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/approvals/list/route.ts", { message: error.message });
 
   return NextResponse.json({ approvals: data ?? [] });
 }

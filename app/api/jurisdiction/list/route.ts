@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient } from "@/lib/supabase/server";
 import { JURISDICTION_MAP, JURISDICTIONS } from "@/lib/utils/jurisdictions";
 
@@ -12,7 +13,7 @@ export async function GET() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/jurisdiction/list/route.ts", { message: error.message });
 
   const enriched = (data ?? []).map((row) => ({
     ...row,

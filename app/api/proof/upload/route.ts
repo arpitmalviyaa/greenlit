@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+
+const MAX_BYTES = 25 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -28,8 +31,9 @@ export async function POST(req: Request) {
   let file_path: string | null = null;
 
   if (file) {
+    if (file.size > MAX_BYTES) return NextResponse.json({ error: "File exceeds 25 MB limit" }, { status: 400 });
     const segment = approval_request_id ? approval_request_id : "general";
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileName = `${Date.now()}_${safeFileName(file.name)}`;
     const contextId = contract_id || sow_id;
     const storagePath = `${profile.organisation_id}/${contextId}/${segment}/${fileName}`;
 
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
       .from("proof-vault")
       .upload(storagePath, file, { upsert: false });
 
-    if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    if (uploadError) return internalError("app/api/proof/upload/route.ts", { message: uploadError.message });
     file_path = storagePath;
   }
 
@@ -57,7 +61,11 @@ export async function POST(req: Request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/proof/upload/route.ts", { message: error.message });
 
   return NextResponse.json({ entry });
+}
+
+function safeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 160) || "proof";
 }

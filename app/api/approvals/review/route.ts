@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/approvals/review/route.ts", { message: error.message });
 
   // If approved and deliverable exists, update deliverable status
   if (body.status === "approved" && existing?.deliverable_id) {

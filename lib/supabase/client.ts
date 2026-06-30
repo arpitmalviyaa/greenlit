@@ -1,9 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { publicSupabaseEnv } from "@/lib/env";
 
 export function createClient() {
+  const env = publicSupabaseEnv();
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.url,
+    env.anonKey,
     {
       auth: {
         persistSession: true,

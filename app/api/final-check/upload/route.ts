@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { extractTextFromBuffer } from "@/lib/utils/extract-text";
 import { getAnthropicClient } from "@/lib/anthropic/client";
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   const version = (count ?? 0) + 2;
   const path = `${contract.organisation_id}/${contractId}/v${version}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const { error: uploadError } = await service.storage.from("contracts").upload(path, buffer, { contentType: file.type, upsert: false });
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  if (uploadError) return internalError("app/api/final-check/upload/route.ts", { message: uploadError.message });
 
   const prompt = `Compare the original and revised Indian commercial agreement. Return strict JSON:
 {"summary":"", "outcome":"improved|mixed|worse", "changes":[{"clause":"", "original":"", "revised":"", "outcome":"won|partly_won|conceded|unchanged|new", "legal_effect":"", "commercial_effect":"", "authority":""}], "unresolved":[], "silent_changes":[]}
@@ -72,7 +73,7 @@ ${extracted.text.slice(0, 45000)}`;
     uploaded_by: user.id,
     comparison_json: comparison,
   });
-  if (versionError) return NextResponse.json({ error: versionError.message }, { status: 500 });
+  if (versionError) return internalError("app/api/final-check/upload/route.ts", { message: versionError.message });
 
   await service.from("negotiation_messages").insert({
     contract_id: contractId,

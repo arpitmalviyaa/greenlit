@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
     .order("created_at", { ascending: false })
     .limit(2);
 
-  if (proposalsError) return NextResponse.json({ error: proposalsError.message }, { status: 500 });
+  if (proposalsError) return internalError("app/api/scope/detect/route.ts", { message: proposalsError.message });
   if (!proposals || proposals.length < 2) {
     return NextResponse.json({ alerts_created: 0, issues: [] });
   }
@@ -70,6 +71,6 @@ export async function POST(req: Request) {
     },
   });
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (insertError) return internalError("app/api/scope/detect/route.ts", { message: insertError.message });
   return NextResponse.json({ alerts_created: 1, issues: [`Changed terms: ${changedTerms.join(", ")}`] });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 function slugify(name: string): string {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     .single();
 
   if (orgError || !org) {
-    return NextResponse.json({ error: orgError?.message ?? "Failed to create organisation" }, { status: 500 });
+    return internalError("app/api/org/create/route.ts", { message: orgError?.message ?? null });
   }
 
   // Link profile to org and mark onboarding done
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   if (profileError) {
     // Rollback org if profile update fails
     await serviceSupabase.from("organisations").delete().eq("id", org.id);
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
+    return internalError("app/api/org/create/route.ts", { message: profileError.message });
   }
 
   // Insert jurisdictions — IN always included regardless of what is passed

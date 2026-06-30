@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/errors";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
       .update({ status: "negotiated" })
       .eq("id", contract.id)
       .eq("organisation_id", profile.organisation_id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return internalError("app/api/final-check/start/route.ts", { message: error.message });
   }
 
   let createdLock = false;
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
       .single();
     if (error) {
       if (transitioned) await service.from("contracts").update({ status: "reviewed" }).eq("id", contract.id);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalError("app/api/final-check/start/route.ts", { message: error.message });
     }
     lock = data;
     createdLock = true;
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     if (error) {
       if (createdLock) await service.from("delivery_locks").delete().eq("id", lock.id);
       if (transitioned) await service.from("contracts").update({ status: "reviewed" }).eq("id", contract.id);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalError("app/api/final-check/start/route.ts", { message: error.message });
     }
     approval = data;
   }
