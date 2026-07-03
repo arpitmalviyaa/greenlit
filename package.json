@@ -14,6 +14,7 @@
     "test:phases": "npm run test:phase24-25 && npm run test:phase26-28 && npm run test:phase29-30",
     "test:unit": "npm run test:phase24-25",
     "test:integration": "npm run test:phase26-28 && npm run test:phase29-30",
+    "test:e2e:live": "node scripts/live-functionality-audit.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "migration:audit": "node scripts/migration-audit.mjs",
     "supabase:audit": "node scripts/supabase-audit.mjs",

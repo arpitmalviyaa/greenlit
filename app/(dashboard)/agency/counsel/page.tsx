@@ -866,61 +866,66 @@ export default function CounselPage() {
     setTextPreview(null);
     setActiveAnalysis(null);
 
-    const form = new FormData();
-    form.append("file", file);
-    form.append("title", title);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("title", title);
 
-    const uploadRes = await fetch("/api/counsel/upload", { method: "POST", body: form });
-    const uploadData = await uploadRes.json() as {
-      contract_id?: string;
-      text_preview?: string | null;
-      extraction_error?: string | null;
-      extraction_success?: boolean;
-      error?: string;
-    };
+      const uploadRes = await fetch("/api/counsel/upload", { method: "POST", body: form });
+      const uploadData = await uploadRes.json() as {
+        contract_id?: string;
+        text_preview?: string | null;
+        extraction_error?: string | null;
+        extraction_success?: boolean;
+        error?: string;
+      };
 
-    if (!uploadRes.ok || !uploadData.contract_id) {
-      setError(uploadData.error ?? "Upload failed");
+      if (!uploadRes.ok || !uploadData.contract_id) {
+        setError(uploadData.error ?? "Upload failed");
+        setUploadState("error");
+        return;
+      }
+
+      const { contract_id, text_preview, extraction_error, extraction_success } = uploadData;
+      setActiveContractId(contract_id);
+      setTextPreview(text_preview ?? null);
+
+      if (!extraction_success) {
+        setError(`Text extraction failed: ${extraction_error ?? "Unknown error"}. Analysis is not possible for this file.`);
+        setUploadState("error");
+        return;
+      }
+
+      setUploadState("analysing");
+      setStatusMsg("Analysing contract (2-pass AI)…");
+
+      const analyseRes = await fetch("/api/counsel/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract_id, jurisdiction }),
+      });
+      const analyseData = await analyseRes.json() as { analysis?: AnalysisResult; error?: string };
+
+      if (!analyseRes.ok || !analyseData.analysis) {
+        setError(analyseData.error ?? "Analysis failed");
+        setUploadState("error");
+        return;
+      }
+
+      setActiveAnalysis(analyseData.analysis);
+      setUploadState("done");
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("contracts")
+        .select("id, title, status, risk_score, analysis_json, created_at, file_name")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (data) setContracts(data as ContractRecord[]);
+    } catch {
+      setError("Contract upload or analysis could not reach the service. Please try again.");
       setUploadState("error");
-      return;
     }
-
-    const { contract_id, text_preview, extraction_error, extraction_success } = uploadData;
-    setActiveContractId(contract_id);
-    setTextPreview(text_preview ?? null);
-
-    if (!extraction_success) {
-      setError(`Text extraction failed: ${extraction_error ?? "Unknown error"}. Analysis is not possible for this file.`);
-      setUploadState("error");
-      return;
-    }
-
-    setUploadState("analysing");
-    setStatusMsg("Analysing contract (2-pass AI)…");
-
-    const analyseRes = await fetch("/api/counsel/analyse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contract_id, jurisdiction }),
-    });
-    const analyseData = await analyseRes.json() as { analysis?: AnalysisResult; error?: string };
-
-    if (!analyseRes.ok || !analyseData.analysis) {
-      setError(analyseData.error ?? "Analysis failed");
-      setUploadState("error");
-      return;
-    }
-
-    setActiveAnalysis(analyseData.analysis);
-    setUploadState("done");
-
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("contracts")
-      .select("id, title, status, risk_score, analysis_json, created_at, file_name")
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (data) setContracts(data as ContractRecord[]);
   }
 
   function handleSelectContract(c: ContractRecord) {

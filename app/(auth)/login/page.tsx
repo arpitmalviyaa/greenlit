@@ -21,57 +21,61 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
+      if (authError) {
+        setError(authError.message === "Failed to fetch" ? "Login could not reach the auth service. Please check your connection and try again." : authError.message);
+        return;
+      }
 
-    if (!data.user) {
-      setError("Login failed. Please try again.");
-      setLoading(false);
-      return;
-    }
+      if (!data.user) {
+        setError("Login failed. Please try again.");
+        return;
+      }
 
-    const { data: platformAdmin } = await supabase
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
+      const { data: platformAdmin } = await supabase
+        .from("platform_admins")
+        .select("user_id")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
 
-    if (platformAdmin) {
-      router.push("/master");
+      if (platformAdmin) {
+        router.push("/master");
+        router.refresh();
+        return;
+      }
+
+      // Fetch profile to determine redirect
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, onboarding_done")
+        .eq("id", data.user.id)
+        .single();
+
+      if (!profile) {
+        router.push("/signup");
+        return;
+      }
+
+      const destinations: Record<string, string> = {
+        agency_admin: profile.onboarding_done ? "/agency" : "/agency/onboarding",
+        creator: "/creator",
+        manager: "/manager",
+        brand: "/brand",
+      };
+
+      router.push(destinations[profile.role] ?? "/");
       router.refresh();
-      return;
+    } catch {
+      setError("Login could not reach the auth service. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    // Fetch profile to determine redirect
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, onboarding_done")
-      .eq("id", data.user.id)
-      .single();
-
-    if (!profile) {
-      router.push("/signup");
-      return;
-    }
-
-    const destinations: Record<string, string> = {
-      agency_admin: profile.onboarding_done ? "/agency" : "/agency/onboarding",
-      creator: "/creator",
-      manager: "/manager",
-      brand: "/brand",
-    };
-
-    router.push(destinations[profile.role] ?? "/");
-    router.refresh();
   }
 
   return (

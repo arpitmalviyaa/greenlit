@@ -29,49 +29,52 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // 1. Create auth user
-    const { data: authData, error: signupError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+      // 1. Create auth user
+      const { data: authData, error: signupError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (signupError) {
-      setError(signupError.message);
+      if (signupError) {
+        setError(signupError.message === "Failed to fetch" ? "Signup could not reach the auth service. Please check your connection and try again." : signupError.message);
+        return;
+      }
+
+      if (!authData.user) {
+        setError("Signup failed. Please try again.");
+        return;
+      }
+
+      // Profile row is created by the handle_new_user trigger on auth.users INSERT.
+      // Do not insert here — there is no session until email is confirmed, so
+      // auth.uid() would be null and RLS would reject the insert.
+
+      setStep("jurisdiction");
+    } catch {
+      setError("Signup could not reach the auth service. Please check your connection and try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!authData.user) {
-      setError("Signup failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // Profile row is created by the handle_new_user trigger on auth.users INSERT.
-    // Do not insert here — there is no session until email is confirmed, so
-    // auth.uid() would be null and RLS would reject the insert.
-
-    setLoading(false);
-    setStep("jurisdiction");
   }
 
   async function handleJurisdictionContinue() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (session) {
-      // Logged in — create org now with jurisdiction codes
-      const codes = Array.from(selectedJurisdictions);
-      try {
+      if (session) {
+        // Logged in — create org now with jurisdiction codes
+        const codes = Array.from(selectedJurisdictions);
         const resp = await fetch("/api/org/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -80,19 +83,17 @@ export default function SignupPage() {
         if (!resp.ok) {
           const d = await resp.json() as { error?: string };
           setError(d.error ?? "Failed to continue");
-          setLoading(false);
           return;
         }
-      } catch {
-        setError("Network error. Please try again.");
-        setLoading(false);
-        return;
+        router.push("/agency/onboarding");
+        router.refresh();
+      } else {
+        // Email confirm required — advance to verify step
+        setStep("verify");
       }
-      router.push("/agency/onboarding");
-      router.refresh();
-    } else {
-      // Email confirm required — advance to verify step
-      setStep("verify");
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
