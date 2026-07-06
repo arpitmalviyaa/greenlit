@@ -42,16 +42,17 @@ const PLANS = [
     featured: true,
   },
   {
-    name: "Brand clearance",
-    price: "Talk to us",
+    name: "Enterprise",
+    price: "Custom",
     period: "",
-    tagline: "Campaign-level clearance for brands working with many creators.",
+    tagline: "For brands and large agencies working with many creators at once. Talk to our team about clearing entire campaigns, higher volumes, and getting your whole team on board.",
     features: [
-      "Campaign clearance links",
-      "Certificate verification",
-      "Volume content checking",
+      "Clearance across a whole campaign",
+      "Verify any clearance record you're sent",
+      "High-volume content checking",
+      "Dedicated onboarding & support",
     ],
-    cta: { label: "hello@getgreenlit.in", href: "mailto:hello@getgreenlit.in?subject=Brand%20campaign%20clearance" },
+    cta: { label: "Contact sales", href: "mailto:hello@getgreenlit.in?subject=Greenlit%20Enterprise" },
     featured: false,
   },
 ];
@@ -60,8 +61,8 @@ export default function PricingPage() {
   return (
     <MarketingShell>
       <section className="max-w-6xl mx-auto px-5 pt-16 pb-8 md:pt-24 text-center">
-        <h1 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.01em] leading-[1.05] text-5xl sm:text-6xl">
-          Pricing.
+        <h1 className="font-[family-name:var(--font-ui)] text-[#111] font-semibold tracking-tight leading-[1.05] text-4xl sm:text-5xl">
+          Pricing
         </h1>
       </section>
 
@@ -75,10 +76,10 @@ export default function PricingPage() {
             >
               <p className="ed-label text-[#111]/45">{p.name}</p>
               <p className="mt-5">
-                <span className="font-[family-name:var(--font-display)] text-5xl font-medium text-[#111]">{p.price}</span>
+                <span className="font-[family-name:var(--font-ui)] text-4xl font-semibold tracking-tight text-[#111]">{p.price}</span>
                 <span className="text-[#111]/40 text-sm">{p.period}</span>
               </p>
-              <p className="font-[family-name:var(--font-display)] text-lg text-[#111]/70 mt-3">{p.tagline}</p>
+              <p className="text-sm text-[#111]/60 mt-3 leading-relaxed">{p.tagline}</p>
               <ul className="mt-6 space-y-2.5 flex-1 border-t border-[#111]/10 pt-6">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-[#111]/75">

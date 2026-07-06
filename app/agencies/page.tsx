@@ -7,29 +7,29 @@ import { CheckSquare, Users, Link2, ScrollText } from "lucide-react";
 export const metadata: Metadata = {
   title: "Greenlit for Agencies & Talent Managers",
   description:
-    "Every contract across your roster, read the same careful way. Approvals, audit trail, and campaign clearance links for brands.",
+    "Greenlit reads every contract your creators sign, tells you what to fix, and keeps a record of it all.",
 };
 
 const FEATURES = [
   {
     icon: ScrollText,
-    title: "One careful read, every contract",
-    body: "Upload any deal — brand agreements, NDAs, renewals. Greenlit surfaces the few terms that matter, why they matter commercially, and the exact wording to send back. Your juniors negotiate like your seniors.",
+    title: "Every contract, read properly",
+    body: "Upload any contract — brand deals, NDAs, renewals. Greenlit shows you the few terms that actually matter, explains why in plain words, and gives you the exact reply to send back.",
   },
   {
     icon: CheckSquare,
-    title: "Approvals that move",
-    body: "Content and contract sign-offs land in one queue with one-click approve. No more screenshots in WhatsApp groups — who approved what, and when, is always on record.",
+    title: "Approvals in one place",
+    body: "All sign-offs land in one queue. One click to approve. Who approved what, and when, is always saved — no more screenshots in WhatsApp groups.",
   },
   {
     icon: Users,
-    title: "Your whole roster in view",
-    body: "Deals across every creator you manage in one list: brand, creator, contract, status, next date. The state of the book in one glance.",
+    title: "All your creators' deals in one list",
+    body: "Every deal across every creator you manage: the brand, the contract, where it stands, and what's due next. One look tells you everything.",
   },
   {
     icon: Link2,
     title: "A record for the day someone asks",
-    body: "Every analysis and clearance is a dated record — verdict, content fingerprint, who approved it, the rules it was checked against. When a brand disputes what was agreed months later, you're not digging through WhatsApp. You open the file.",
+    body: "Every check is saved with the date, the result, and who approved it. If a brand ever disputes what was agreed, you don't dig through old chats — you open the record.",
   },
 ];
 
@@ -39,11 +39,10 @@ export default function AgenciesPage() {
       <section className="max-w-6xl mx-auto px-5 pt-16 pb-12 md:pt-24">
         <p className="ed-label text-[#111]/45">For agencies &amp; managers</p>
         <h1 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.015em] leading-[1.08] text-4xl sm:text-5xl md:text-[4rem] max-w-4xl mt-4">
-          Your roster&apos;s contracts, read like a senior manager reads them.
+          Every contract your creators sign, read properly first.
         </h1>
         <p className="ed-body mt-6 text-[#111]/65">
-          Greenlit gives agencies and talent managers one careful, consistent read of every deal —
-          and the paper trail to prove it.
+          Greenlit reads every deal for you, tells you what to fix, and keeps a record of it all.
         </p>
         <Link
           href="/signup"

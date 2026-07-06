@@ -88,8 +88,8 @@ const QA: Array<{ q: string; a: React.ReactNode }> = [
     q: "Is our data safe?",
     a: (
       <>
-        Your contracts never train AI models, and workspace isolation is enforced in the database
-        itself. The{" "}
+        Your contracts never train AI models, and only your workspace can see your data — the
+        database itself enforces it. The{" "}
         <Link href="/security" className="ed-link text-[#111] hover:text-[#1D9E75]">
           Security page
         </Link>{" "}

@@ -5,56 +5,55 @@ import { Reveal } from "@/components/marketing/reveal";
 export const metadata: Metadata = {
   title: "Security — Greenlit",
   description:
-    "How Greenlit handles your contracts: no AI training on your documents, encryption, database-enforced workspace isolation, and DPDPA-aware retention.",
+    "How Greenlit keeps your contracts safe: your documents never train AI, everything is encrypted, and only your workspace can see your data.",
 };
 
-// Founder copy — ships verbatim. Do not edit, soften, or expand.
 const SECTIONS: Array<{ label: string; title: string; body: string[] }> = [
   {
     label: "AI training",
     title: "Your contracts never train AI models",
     body: [
-      "When Greenlit analyses a document, the text is sent to our AI provider (Anthropic) under commercial terms that prohibit training on your data. We log what the analysis cost and how long it took — never the contract text itself.",
-      "Your documents exist in exactly two places: your workspace's storage, and the analysis stored against your workspace. Nowhere else.",
+      "When Greenlit reads your document, the text goes to our AI provider (Anthropic) under a commercial agreement that forbids using your data to train AI. We keep a note of what each analysis cost and how long it took — never the contract itself.",
+      "Your documents live in exactly two places: your workspace's storage, and the analysis saved to your workspace. Nowhere else.",
     ],
   },
   {
     label: "Workspace isolation",
-    title: "Workspace isolation is enforced in the database",
+    title: "Only your workspace can see your data",
     body: [
-      "Every contract, check, approval and certificate belongs to one organisation, and the database itself refuses to serve another organisation's rows — a control called row-level security that applies even if application code has a bug.",
-      "We verify this with cross-tenant denial tests: accounts in one workspace attempting to read another workspace's contracts, files and approvals, and being refused at the database layer.",
+      "Everything you upload belongs to your workspace, and only your workspace. The database itself refuses to show one company's data to another — a protection that holds even if there's a bug in our app.",
+      "We test this regularly: accounts in one workspace try to open another workspace's contracts and files, and the database turns them away every time.",
     ],
   },
   {
     label: "Encryption",
-    title: "Encryption",
+    title: "Everything is encrypted",
     body: [
-      "All traffic is encrypted in transit with TLS. Documents and data are encrypted at rest by our infrastructure providers (Supabase on AWS).",
+      "Everything travels over encrypted connections (TLS), and everything we store is encrypted at rest by our infrastructure providers (Supabase on AWS).",
     ],
   },
   {
     label: "Retention",
     title: "What we keep, and for how long",
     body: [
-      "We keep your contracts and analyses for as long as your account is active, because the history is the point — the record you reach for when a dispute surfaces months later.",
-      "Delete your account and workspace data is removed from production systems; residual copies in encrypted backups age out on the backup rotation schedule.",
+      "We keep your contracts and analyses for as long as your account is active — the history is the point. It's the record you reach for when a dispute comes up months later.",
+      "If you delete your account, your data is removed from our systems. Copies inside encrypted backups expire on the normal backup schedule.",
     ],
   },
   {
     label: "DPDPA",
-    title: "India's DPDPA",
+    title: "India's data protection law",
     body: [
-      "Greenlit is built India-first and processes personal data in line with the Digital Personal Data Protection Act, 2023: purpose-limited processing, consent-based signup, and the right to erasure described above.",
-      "For agency data-processing agreements or a security questionnaire, write to hello@getgreenlit.in — we respond quickly.",
+      "Greenlit is built in India and handles personal data under India's Digital Personal Data Protection Act, 2023. In plain terms: we only use your data for what you gave it to us for, signup is consent-based, and you can have your data erased, as described above.",
+      "Need a data-processing agreement or a security questionnaire filled in? Write to hello@getgreenlit.in — we respond quickly.",
     ],
   },
   {
     label: "Access",
     title: "Who can see your data",
     body: [
-      "The people in your workspace, and no one else. Greenlit staff do not browse customer contracts; production access is limited to debugging with your consent.",
-      "Clearance certificates are the one deliberate exception: each is a public page at an unguessable address showing the verdict, date and a content fingerprint — never the content itself.",
+      "The people in your workspace — and no one else. Greenlit staff don't browse customer contracts, and we only touch production data to fix a problem, with your consent.",
+      "The one exception, by design: clearance records. Each is a public page at an unguessable web address showing the result, the date and a fingerprint of the content — never the content itself.",
     ],
   },
 ];
@@ -64,11 +63,10 @@ export default function SecurityPage() {
     <MarketingShell>
       <section className="max-w-3xl mx-auto px-5 pt-16 pb-10 md:pt-24">
         <h1 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.01em] leading-[1.05] text-4xl sm:text-6xl">
-          Contracts are sensitive. We built like it.
+          Your contracts are safe here.
         </h1>
         <p className="ed-body mt-6 text-[#111]/65">
-          Plain-language answers to the questions agencies ask us before they upload their first
-          contract.
+          Simple answers to the questions agencies ask us before they upload their first contract.
         </p>
       </section>
 
