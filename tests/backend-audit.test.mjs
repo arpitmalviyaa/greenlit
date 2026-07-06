@@ -46,6 +46,15 @@ test("public route allowlist stays explicit", () => {
   }
 });
 
+test("logged-out root visitors see the public homepage instead of login", () => {
+  const rootPage = readFileSync("app/page.tsx", "utf8");
+  const middleware = readFileSync("lib/supabase/middleware.ts", "utf8");
+
+  assert.match(rootPage, /if \(!user\) redirect\("\/greenlit-homepage\.html"\)/);
+  assert.match(middleware, /pathname === "\/"/);
+  assert.doesNotMatch(middleware, /PUBLIC_ROUTES = \["\/"/);
+});
+
 test("proof upload validates resource ownership before storage or service-role insert", () => {
   const source = readFileSync("app/api/proof/upload/route.ts", "utf8");
   const contractCheck = source.indexOf('.from("contracts")');

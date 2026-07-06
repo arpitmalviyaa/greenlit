@@ -71,7 +71,7 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   userId = user?.id ?? null;
 
-  const isPublicRoute = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+  const isPublicRoute = pathname === "/" || PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
   // Unauthenticated user hitting a protected route → send to login
   if (!user && !isPublicRoute) {
