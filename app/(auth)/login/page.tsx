@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showResend, setShowResend] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("confirmed") === "1") {
+      setNotice("Email confirmed — you can sign in now.");
+    } else if (params.get("error") === "confirm_link_expired") {
+      setNotice("That confirmation link has expired. Sign in below to request a fresh one.");
+    } else if (params.get("error") === "confirm_link_invalid") {
+      setNotice("That confirmation link looks incomplete. Sign in below to request a fresh one.");
+    }
+  }, []);
 
   async function handleResendConfirmation() {
     setResendState("sending");
@@ -107,6 +119,11 @@ export default function LoginPage() {
       </CardHeader>
       <form onSubmit={handleLogin}>
         <CardContent className="space-y-4">
+          {notice && !error && (
+            <div className="rounded-md border border-white/30 px-4 py-3 text-sm text-white">
+              {notice}
+            </div>
+          )}
           {error && (
             <div className="rounded-md border border-white/30 px-4 py-3 text-sm text-white">
               {error}

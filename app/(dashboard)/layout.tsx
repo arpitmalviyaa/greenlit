@@ -21,13 +21,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!profile) redirect("/agency/onboarding");
 
   let orgName = "Greenlit";
+  let planName = "free";
   if (profile.organisation_id) {
-    const { data: org } = await supabase
-      .from("organisations")
-      .select("name")
-      .eq("id", profile.organisation_id)
-      .single();
+    const [{ data: org }, { data: sub }] = await Promise.all([
+      supabase.from("organisations").select("name").eq("id", profile.organisation_id).single(),
+      supabase
+        .from("organisation_subscriptions")
+        .select("subscription_plans(name)")
+        .eq("organisation_id", profile.organisation_id)
+        .maybeSingle(),
+    ]);
     if (org) orgName = org.name;
+    const planRow = sub as { subscription_plans: { name: string } | null } | null;
+    if (planRow?.subscription_plans?.name) planName = planRow.subscription_plans.name;
   }
 
   return (
@@ -36,6 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         role={profile.role as UserRole}
         orgName={orgName}
         userName={profile.name}
+        planName={planName}
       />
       <main className="flex-1 overflow-auto">
         {children}
