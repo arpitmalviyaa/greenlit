@@ -1,24 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAnthropicClient } from "@/lib/anthropic/client";
 import { MODELS } from "@/lib/anthropic/utils";
-import { RED_FLAGS_SYSTEM, redFlagsUser } from "@/lib/anthropic/prompts/red-flags";
-
-interface RedFlagItem {
-  flag_type: string;
-  clause_text: string;
-  severity: "low" | "medium" | "high" | "critical";
-  business_impact: string;
-}
-
-function safeParse<T>(text: string): T | null {
-  try {
-    const cleaned = text.replace(/^```json?\n?/m, "").replace(/\n?```$/m, "").trim();
-    return JSON.parse(cleaned) as T;
-  } catch {
-    return null;
-  }
-}
+import { AIOutputError, callStructured } from "@/lib/anthropic/structured";
+import { RED_FLAGS_SYSTEM, RedFlagsSchema, redFlagsUser } from "@/lib/anthropic/prompts/red-flags";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -51,21 +35,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Contract has not been analysed yet" }, { status: 422 });
   }
 
-  const anthropic = getAnthropicClient();
-
   try {
-    const resp = await anthropic.messages.create({
+    const result = await callStructured({
+      feature: "counsel.redflags",
+      promptVersion: "v2",
       model: MODELS.HAIKU,
-      max_tokens: 600,
+      maxTokens: 2000,
       system: RED_FLAGS_SYSTEM,
-      messages: [{ role: "user", content: redFlagsUser(JSON.stringify(contract.analysis_json)) }],
+      user: redFlagsUser(JSON.stringify(contract.analysis_json)),
+      schema: RedFlagsSchema,
+      toolName: "report_red_flags",
     });
-    const raw = resp.content[0].type === "text" ? resp.content[0].text : "";
-    const result = safeParse<{ flags: RedFlagItem[] }>(raw);
-    if (!result) return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     return NextResponse.json({ flags: result.flags }, { status: 200 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Red flag scan failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    if (err instanceof AIOutputError) {
+      return NextResponse.json(
+        { error: "Red flag scan could not produce a valid result. Please retry.", code: err.code },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Red flag scan failed", code: "AI_REQUEST_FAILED" },
+      { status: 502 }
+    );
   }
 }

@@ -15,10 +15,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  async function handleResendConfirmation() {
+    setResendState("sending");
+    const supabase = createClient();
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setResendState(resendError ? "failed" : "sent");
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setShowResend(false);
     setLoading(true);
 
     try {
@@ -29,7 +43,12 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        setError(authError.message === "Failed to fetch" ? "Login could not reach the auth service. Please check your connection and try again." : authError.message);
+        if (/email not confirmed/i.test(authError.message)) {
+          setError("Your email address hasn't been confirmed yet.");
+          setShowResend(true);
+        } else {
+          setError(authError.message === "Failed to fetch" ? "Login could not reach the auth service. Please check your connection and try again." : authError.message);
+        }
         return;
       }
 
@@ -91,6 +110,24 @@ export default function LoginPage() {
           {error && (
             <div className="rounded-md border border-white/30 px-4 py-3 text-sm text-white">
               {error}
+              {showResend && (
+                <div className="mt-2">
+                  {resendState === "sent" ? (
+                    <span className="text-zinc-400">Confirmation email sent — check your inbox.</span>
+                  ) : resendState === "failed" ? (
+                    <span className="text-zinc-400">Could not resend right now. Please try again in a minute.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendConfirmation}
+                      disabled={resendState === "sending"}
+                      className="underline text-white hover:text-zinc-300"
+                    >
+                      {resendState === "sending" ? "Sending…" : "Resend confirmation email"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <div className="space-y-2">

@@ -23,6 +23,18 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   // IN always pre-selected and locked
   const [selectedJurisdictions, setSelectedJurisdictions] = useState<Set<JurisdictionCode>>(new Set<JurisdictionCode>(["IN"]));
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  async function handleResendConfirmation() {
+    setResendState("sending");
+    const supabase = createClient();
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setResendState(resendError ? "failed" : "sent");
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -121,12 +133,31 @@ export default function SignupPage() {
             Click it to activate your account, then sign in.
           </CardDescription>
         </CardHeader>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
           <Link href="/login" className="w-full">
             <Button variant="outline" className="w-full border-slate-600 text-slate-300">
               Go to sign in
             </Button>
           </Link>
+          <p className="text-sm text-slate-400 text-center">
+            {resendState === "sent" ? (
+              "Confirmation email sent — check your inbox and spam folder."
+            ) : resendState === "failed" ? (
+              "Could not resend right now. Please wait a minute and try again."
+            ) : (
+              <>
+                Didn&apos;t get it?{" "}
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendState === "sending"}
+                  className="underline text-green-400 hover:text-green-300"
+                >
+                  {resendState === "sending" ? "Sending…" : "Resend email"}
+                </button>
+              </>
+            )}
+          </p>
         </CardFooter>
       </Card>
     );
