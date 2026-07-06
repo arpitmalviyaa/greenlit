@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { JURISDICTIONS, type JurisdictionCode } from "@/lib/utils/jurisdictions";
 import { cn } from "@/lib/utils/cn";
+import { track } from "@/lib/analytics";
 
 type Step = "account" | "jurisdiction" | "verify";
 
@@ -40,6 +41,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    track("signup_start");
 
     try {
       const supabase = createClient();
@@ -101,6 +103,7 @@ export default function SignupPage() {
         router.refresh();
       } else {
         // Email confirm required — advance to verify step
+        track("signup_complete");
         setStep("verify");
       }
     } catch {

@@ -1,115 +1,122 @@
-import { createServiceClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { MarketingShell } from "@/components/marketing/shell";
+import { Reveal } from "@/components/marketing/reveal";
+import { Check } from "lucide-react";
 
-interface Plan {
-  id: string;
-  name: string;
-  price_inr: number;
-  price_usd: number;
-  features_json: { modules?: string[] };
-  jurisdiction_limit: number;
-}
-
-const PLAN_DESCRIPTIONS: Record<string, { tagline: string; highlights: string[] }> = {
-  free: {
-    tagline: "Get started with content scanning and contract upload.",
-    highlights: ["Content Scanner", "Contract Upload", "1 jurisdiction (India)", "AI analysis — Haiku"],
-  },
-  pro: {
-    tagline: "All counsel tools + send scanner + NDA trap detection.",
-    highlights: ["Everything in Free", "Full Counsel Suite", "Send Scanner", "NDA Scanner", "2 jurisdictions"],
-  },
-  agency: {
-    tagline: "Full workflow management for growing influencer agencies.",
-    highlights: [
-      "Everything in Pro",
-      "SOW Builder", "Scope Monitor", "Delivery Lock",
-      "Approvals & Proof Vault", "Deal Rooms", "Exclusivity Radar",
-      "Whitelisting Guard", "Rights Pricing", "Creator Passport",
-      "Legal Playbook", "4 jurisdictions",
-    ],
-  },
-  enterprise: {
-    tagline: "Complete legal intelligence across all modules and jurisdictions.",
-    highlights: [
-      "Everything in Agency",
-      "Meeting Counsel", "Term Sheets",
-      "Legal Notice Triage + Crisis Room",
-      "Cross-Reference (multi-jurisdiction)",
-      "Adversary Lens", "AI & Vendor Risk",
-      "All 7 jurisdictions", "Priority support",
-    ],
-  },
+export const metadata: Metadata = {
+  title: "Pricing — Greenlit",
+  description: "Introductory pricing for creators and agencies. Free live checks to start.",
 };
 
-export default async function PricingPage() {
-  const serviceClient = await createServiceClient();
-  const { data: plans } = await serviceClient
-    .from("subscription_plans")
-    .select("*")
-    .order("price_inr", { ascending: true });
+const PLANS = [
+  {
+    name: "Creator",
+    price: "₹999",
+    period: "/month",
+    tagline: "For individual creators who sign their own deals.",
+    features: [
+      "Unlimited contract analyses",
+      "Unlimited content checks",
+      "Clearance certificates",
+      "Deal history & records",
+      "Mobile-first check flow",
+    ],
+    cta: { label: "Get early access", href: "/signup" },
+    featured: false,
+  },
+  {
+    name: "Agency",
+    price: "₹15,000",
+    period: "/month",
+    tagline: "For agencies and talent managers running a roster.",
+    features: [
+      "Everything in Creator",
+      "Team seats & roster view",
+      "Approvals workflow with audit trail",
+      "Campaign clearance links for brands",
+      "NDA scanning & version compare",
+      "Priority support",
+    ],
+    cta: { label: "Get early access", href: "/signup" },
+    featured: true,
+  },
+  {
+    name: "Brand clearance",
+    price: "Talk to us",
+    period: "",
+    tagline: "Campaign-level clearance for brands working with many creators.",
+    features: [
+      "Campaign clearance links",
+      "Certificate verification",
+      "Volume content checking",
+    ],
+    cta: { label: "hello@getgreenlit.in", href: "mailto:hello@getgreenlit.in?subject=Brand%20campaign%20clearance" },
+    featured: false,
+  },
+];
 
-  const planList = (plans ?? []) as Plan[];
-
+export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900">Simple, transparent pricing</h1>
-          <p className="text-lg text-gray-500 mt-3">Legal intelligence for influencer agencies. Start free, scale as you grow.</p>
-        </div>
+    <MarketingShell>
+      <section className="max-w-6xl mx-auto px-5 pt-16 pb-8 md:pt-24 text-center">
+        <h1 className="font-[family-name:var(--font-display)] text-[#111] font-bold tracking-tight text-4xl sm:text-5xl">
+          Simple, introductory pricing.
+        </h1>
+        <p className="mt-4 text-lg text-[#111]/60 max-w-xl mx-auto">
+          Beta pricing while we onboard early agencies — locked in for a year for everyone who joins
+          now. Free live checks on the homepage, no account needed.
+        </p>
+      </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {planList.map((plan) => {
-            const info = PLAN_DESCRIPTIONS[plan.name];
-            const isHighlighted = plan.name === "agency";
-            return (
-              <div
-                key={plan.id}
-                className={`rounded-2xl p-6 space-y-5 ${
-                  isHighlighted
-                    ? "bg-blue-600 text-white shadow-xl ring-4 ring-blue-300 scale-105"
-                    : "bg-white border border-gray-200 text-gray-900"
+      <section className="max-w-6xl mx-auto px-5 py-10 grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+        {PLANS.map((p, i) => (
+          <Reveal key={p.name} delay={i * 80} className="h-full">
+            <div
+              className={`rounded-2xl border p-7 h-full flex flex-col bg-white ${
+                p.featured ? "border-[#1D9E75] shadow-[0_1px_24px_rgba(29,158,117,0.12)]" : "border-[#111]/10"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-[#111]">{p.name}</h2>
+                {p.featured && (
+                  <span className="text-[11px] font-medium bg-[#1D9E75]/10 text-[#157A5B] rounded-full px-2.5 py-1">
+                    Most popular
+                  </span>
+                )}
+              </div>
+              <p className="mt-4">
+                <span className="font-[family-name:var(--font-display)] text-4xl font-bold text-[#111]">{p.price}</span>
+                <span className="text-[#111]/40 text-sm">{p.period}</span>
+              </p>
+              <p className="text-sm text-[#111]/60 mt-2">{p.tagline}</p>
+              <ul className="mt-5 space-y-2.5 flex-1">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-[#111]/75">
+                    <Check className="w-4 h-4 text-[#1D9E75] shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={p.cta.href}
+                className={`mt-7 text-center text-sm font-medium rounded-lg px-5 py-2.5 transition-colors ${
+                  p.featured
+                    ? "bg-[#1D9E75] text-white hover:opacity-90"
+                    : "border border-[#111]/15 text-[#111] hover:bg-[#111]/5"
                 }`}
               >
-                <div>
-                  <h2 className="text-xl font-bold capitalize">{plan.name}</h2>
-                  {isHighlighted && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">Most Popular</span>}
-                </div>
-                <div>
-                  <span className="text-3xl font-bold">
-                    {plan.price_inr === 0 ? "Free" : `₹${plan.price_inr}`}
-                  </span>
-                  {plan.price_inr > 0 && <span className={`text-sm ml-1 ${isHighlighted ? "text-blue-100" : "text-gray-500"}`}>/month</span>}
-                </div>
-                <p className={`text-sm ${isHighlighted ? "text-blue-100" : "text-gray-500"}`}>{info?.tagline}</p>
-                <ul className="space-y-2">
-                  {(info?.highlights ?? []).map((h, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className={isHighlighted ? "text-white" : "text-green-600"}>✓</span>
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href="/login"
-                  className={`block text-center py-2.5 px-4 rounded-lg font-semibold text-sm transition-colors ${
-                    isHighlighted
-                      ? "bg-white text-blue-600 hover:bg-blue-50"
-                      : "bg-gray-900 text-white hover:bg-gray-700"
-                  }`}
-                >
-                  {plan.price_inr === 0 ? "Get started free" : "Subscribe"}
-                </a>
-              </div>
-            );
-          })}
-        </div>
+                {p.cta.label}
+              </Link>
+            </div>
+          </Reveal>
+        ))}
+      </section>
 
-        <div className="mt-10 text-center text-sm text-gray-500">
-          <p>Need more jurisdictions? Each additional jurisdiction can be added from your agency dashboard.</p>
-          <p className="mt-1">All prices in INR. USD equivalent shown for reference. Billed monthly via Razorpay.</p>
-        </div>
-      </div>
-    </div>
+      <p className="max-w-6xl mx-auto px-5 pb-16 text-center text-xs text-[#111]/40">
+        Introductory beta pricing — subject to change for new customers after launch. Free tier
+        includes limited live checks on the homepage.
+      </p>
+    </MarketingShell>
   );
 }
