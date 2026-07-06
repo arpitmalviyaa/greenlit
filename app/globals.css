@@ -58,35 +58,72 @@
   }
 }
 
-/* ── Marketing site (Phase 2) ────────────────────────────────────────────── */
+/* ── Marketing site — editorial system ───────────────────────────────────── */
 
+body {
+  /* Long-form marketing body reads in the serif; swap independently of display/UI. */
+  --font-body: var(--font-display);
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Small-caps letterspaced sans section label */
+.ed-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Long-form serif body: 18–20px, ~1.6 leading, ~65ch measure */
+.ed-body {
+  font-family: var(--font-body);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  max-width: 65ch;
+}
+
+/* Editorial link underline */
+.ed-link {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: color 0.2s var(--ease-editorial);
+}
+
+/* Scroll reveal: opacity + 12px rise, once, ≤450ms */
 .mk-reveal {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  transform: translateY(12px);
+  transition: opacity 0.3s var(--ease-editorial), transform 0.3s var(--ease-editorial);
 }
 .mk-reveal.mk-in {
   opacity: 1;
   transform: none;
 }
 
-/* Hero clause highlight sweep */
-.mk-trap {
-  background-image: linear-gradient(to right, rgba(29, 158, 117, 0.28), rgba(29, 158, 117, 0.28));
-  background-repeat: no-repeat;
-  background-size: 0% 100%;
-  transition: background-size 0.6s ease-out;
+/* Hero entrance: single rise-and-settle on load */
+.ed-enter {
+  animation: ed-enter 0.4s var(--ease-editorial) both;
 }
-.mk-trap.mk-in {
-  background-size: 100% 100%;
+@keyframes ed-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mk-reveal,
-  .mk-trap {
+  .mk-reveal {
     transition: none;
     opacity: 1;
     transform: none;
-    background-size: 100% 100%;
+  }
+  .ed-enter {
+    animation: none;
   }
 }

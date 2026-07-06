@@ -32,27 +32,33 @@ export default function CreatorsPage() {
   return (
     <MarketingShell>
       <section className="max-w-6xl mx-auto px-5 pt-16 pb-12 md:pt-24">
-        <h1 className="font-[family-name:var(--font-display)] text-[#111] font-bold tracking-tight leading-[1.05] text-4xl sm:text-5xl md:text-6xl max-w-3xl">
+        <p className="ed-label text-[#111]/45">For creators</p>
+        <h1 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.015em] leading-[1.08] text-4xl sm:text-5xl md:text-[4rem] max-w-4xl mt-4">
           Know before you sign. Know before you post.
         </h1>
-        <p className="mt-5 text-lg text-[#111]/60 max-w-xl">
+        <p className="ed-body mt-6 text-[#111]/65">
           The deal-savvy friend every creator needs — in your pocket, before you commit to anything.
         </p>
-        <Link
-          href="/signup"
-          className="inline-block mt-8 bg-[#1D9E75] text-white font-medium rounded-lg px-6 py-3 hover:opacity-90 transition-opacity"
-        >
-          Get early access
-        </Link>
+        <div className="mt-8 flex flex-wrap items-center gap-5">
+          <Link
+            href="/signup"
+            className="inline-block bg-[#111] text-[#F5F3EE] text-sm font-medium rounded-md px-7 py-3.5 hover:bg-[#111]/85 transition-colors duration-200"
+          >
+            Get early access
+          </Link>
+          <Link href="/check" className="ed-link text-sm text-[#111]/70 hover:text-[#1D9E75]">
+            Or run a free live check first →
+          </Link>
+        </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-5 py-12 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="max-w-6xl mx-auto px-5 py-12 pb-24 grid grid-cols-1 md:grid-cols-3 gap-4">
         {FEATURES.map((f, i) => (
           <Reveal key={f.title} delay={i * 60}>
-            <div className="rounded-2xl border border-[#111]/10 bg-white p-7 h-full">
-              <f.icon className="w-6 h-6 text-[#1D9E75] mb-3" />
-              <h2 className="text-lg font-semibold text-[#111]">{f.title}</h2>
-              <p className="text-sm text-[#111]/60 mt-2 leading-relaxed">{f.body}</p>
+            <div className="rounded-2xl border border-[#111]/10 bg-white p-7 h-full transition-transform duration-200 hover:-translate-y-0.5">
+              <f.icon className="w-6 h-6 text-[#1D9E75] mb-4" />
+              <h2 className="font-[family-name:var(--font-display)] text-2xl font-medium text-[#111] leading-snug">{f.title}</h2>
+              <p className="text-sm text-[#111]/60 mt-3 leading-relaxed">{f.body}</p>
             </div>
           </Reveal>
         ))}

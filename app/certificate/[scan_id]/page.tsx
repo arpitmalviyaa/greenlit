@@ -69,8 +69,8 @@ export default async function CertificatePage({ params }: { params: Promise<{ sc
 
         <p className="text-[11px] text-gray-400 mt-8 leading-relaxed">
           The fingerprint is a SHA-256 hash of the exact content that was checked — if the published
-          content matches the hash, it is the content this certificate covers. AI-assisted review;
-          not legal advice. Verify at getgreenlit.in/certificate/{scan.id.slice(0, 8)}…
+          content matches the hash, it is the content this certificate covers. Verify at
+          getgreenlit.in/certificate/{scan.id.slice(0, 8)}…
         </p>
       </div>
     </div>

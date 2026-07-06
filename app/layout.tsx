@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, EB_Garamond } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
-const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
+// Independent, swappable type tokens: --font-display (editorial serif),
+// --font-ui (functional sans). --font-body aliases to the serif in globals.css.
+const inter = Inter({ subsets: ["latin"], variable: "--font-ui" });
+const garamond = EB_Garamond({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getgreenlit.in"),
@@ -15,7 +21,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${grotesk.variable} font-[family-name:var(--font-body)]`}>
+      <body className={`${inter.variable} ${garamond.variable} font-[family-name:var(--font-ui)]`}>
         {children}
       </body>
     </html>

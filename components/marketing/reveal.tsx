@@ -28,7 +28,9 @@ export function Reveal({
           io.disconnect();
         }
       },
-      { threshold: 0.15 }
+      // Fire just before the element enters view — the page should feel
+      // like it already finished animating.
+      { threshold: 0, rootMargin: "0px 0px -60px 0px" }
     );
     io.observe(el);
     return () => io.disconnect();
