@@ -27,7 +27,9 @@
     "env:check": "node scripts/check-env.mjs",
     "verify:nonlive": "node scripts/verify-nonlive.mjs",
     "verify:release": "node scripts/verify-release.mjs",
-    "test:ai-schemas": "node --test tests/redflags-schema.test.mjs"
+    "test:ai-schemas": "node --test tests/redflags-schema.test.mjs",
+    "qa:cross-tenant": "node scripts/qa-cross-tenant.mjs",
+    "qa:prod-flow": "node scripts/qa-prod-flow.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
