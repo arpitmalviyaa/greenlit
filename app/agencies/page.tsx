@@ -39,7 +39,7 @@ export default function AgenciesPage() {
       <section className="max-w-6xl mx-auto px-5 pt-16 pb-12 md:pt-24">
         <p className="ed-label text-[#111]/45">For agencies &amp; managers</p>
         <h1 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.015em] leading-[1.08] text-4xl sm:text-5xl md:text-[4rem] max-w-4xl mt-4">
-          Every contract your creators sign, read properly first.
+          Review every contract before your creators sign.
         </h1>
         <p className="ed-body mt-6 text-[#111]/65">
           Greenlit reads every deal for you, tells you what to fix, and keeps a record of it all.
