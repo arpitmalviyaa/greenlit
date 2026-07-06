@@ -6,7 +6,7 @@ import test from "node:test";
 const apiRoutes = walk("app/api").filter((file) => file.endsWith("/route.ts")).sort();
 
 test("backend route inventory keeps critical production APIs present", () => {
-  assert.equal(apiRoutes.length, 68);
+  assert.equal(apiRoutes.length, 71);
   for (const route of [
     "app/api/health/route.ts",
     "app/api/ready/route.ts",
@@ -30,6 +30,9 @@ test("public route allowlist stays explicit", () => {
     "app/api/auth/callback/route.ts",
     "app/api/billing/plans/route.ts",
     "app/api/billing/webhook/route.ts",
+    // Marketing-site public APIs: rate-limited live check + analytics beacon
+    "app/api/public/live-check/route.ts",
+    "app/api/public/event/route.ts",
   ]);
 
   for (const route of apiRoutes) {
@@ -50,7 +53,9 @@ test("logged-out root visitors see the public homepage instead of login", () => 
   const rootPage = readFileSync("app/page.tsx", "utf8");
   const middleware = readFileSync("lib/supabase/middleware.ts", "utf8");
 
-  assert.match(rootPage, /if \(!user\) redirect\("\/greenlit-homepage\.html"\)/);
+  // Logged-out visitors get the marketing homepage rendered in-place
+  assert.match(rootPage, /MarketingNav/);
+  assert.match(rootPage, /<Hero \/>/);
   assert.match(middleware, /pathname === "\/"/);
   assert.doesNotMatch(middleware, /PUBLIC_ROUTES = \["\/"/);
 });
