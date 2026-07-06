@@ -193,7 +193,7 @@ export function Certificate() {
   );
 }
 
-/* ── S6 — Calm, not alarmist ───────────────────────────────────────────── */
+/* ── S6 — Generic AI vs Greenlit ───────────────────────────────────────── */
 
 export function CalmPositioning() {
   const rows: Array<[string, string]> = [
@@ -214,22 +214,23 @@ export function CalmPositioning() {
   return (
     <section className="max-w-6xl mx-auto px-5 py-20 md:py-28">
       <Reveal>
-        <p className="ed-label text-[#111]/45">Tone</p>
+        <p className="ed-label text-[#111]/45">Generic AI vs Greenlit</p>
         <h2 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.01em] leading-[1.1] text-3xl md:text-[2.75rem] mt-4">
           Calm, not alarmist.
         </h2>
         <p className="ed-body mt-4 text-[#111]/65 !text-[1.0625rem]">
-          A frightened tool makes every clause sound like a lawsuit. An experienced one tells you
-          what to do next.
+          Paste a contract into a general-purpose GPT and you get a different answer every time —
+          and rarely one you can act on. Greenlit is built for these deals, and tells you what to
+          do next.
         </p>
       </Reveal>
       <div className="mt-10 space-y-3">
-        {rows.map(([scary, greenlit], i) => (
+        {rows.map(([generic, greenlit], i) => (
           <Reveal key={i} delay={i * 60}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="rounded-xl border border-[#111]/10 bg-white/40 p-6">
-                <p className="ed-label text-[#111]/35 !text-[10px] mb-3">A scary tool says</p>
-                <p className="text-sm text-[#111]/50">{scary}</p>
+                <p className="ed-label text-[#111]/35 !text-[10px] mb-3">A generic GPT says</p>
+                <p className="text-sm text-[#111]/50">{generic}</p>
               </div>
               <div className="rounded-xl border border-[#1D9E75]/30 bg-white p-6">
                 <p className="ed-label text-[#1D9E75] !text-[10px] mb-3">Greenlit says</p>
