@@ -28,8 +28,8 @@ const FEATURES = [
   },
   {
     icon: Link2,
-    title: "Clearance links brands can open",
-    body: "Send a brand a clearance certificate for checked content — a clean, shareable link. No brand logins, no portal to manage.",
+    title: "A record for the day someone asks",
+    body: "Every analysis and clearance is a dated record — verdict, content fingerprint, who approved it, the rules it was checked against. When a brand disputes what was agreed months later, you're not digging through WhatsApp. You open the file.",
   },
 ];
 

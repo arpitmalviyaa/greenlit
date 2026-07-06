@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
+import { JURISDICTION_MAP, type JurisdictionCode } from "@/lib/utils/jurisdictions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,12 +29,16 @@ export default async function CertificatePage({ params }: { params: Promise<{ sc
   const contentHash = createHash("sha256").update(scan.raw_content ?? "").digest("hex");
   const date = new Date(scan.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
+  // Named regulators lead, Greenlit follows.
+  const jurisdiction = JURISDICTION_MAP[scan.jurisdiction as JurisdictionCode];
+  const ruleSet = jurisdiction?.corpus_sources?.join(", ");
+
   return (
     <div className="min-h-screen bg-[#F5F3EE] flex items-center justify-center p-6 print:bg-white">
       <div className="w-full max-w-xl bg-white border border-gray-200 rounded-2xl p-10 shadow-sm print:shadow-none print:border-gray-300">
         <div className="flex items-center justify-between mb-10">
           <span className="text-2xl font-bold tracking-tight text-[#1D9E75]">greenlit</span>
-          <span className="text-[11px] uppercase tracking-widest text-gray-400">Content clearance certificate</span>
+          <span className="text-[11px] uppercase tracking-widest text-gray-400">Content clearance record</span>
         </div>
 
         <div className="text-center py-6">
@@ -44,7 +49,9 @@ export default async function CertificatePage({ params }: { params: Promise<{ sc
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Cleared to publish</h1>
           <p className="text-sm text-gray-500 mt-2">
-            This {scan.content_type} passed Greenlit&apos;s compliance check for the {scan.jurisdiction === "IN" ? "Indian" : scan.jurisdiction} market.
+            {ruleSet
+              ? <>This {scan.content_type} was checked against the {ruleSet} for the {jurisdiction.name} market, and recorded by Greenlit.</>
+              : <>This {scan.content_type} passed a compliance check for the {scan.jurisdiction === "IN" ? "Indian" : scan.jurisdiction} market, recorded by Greenlit.</>}
           </p>
         </div>
 
@@ -53,6 +60,12 @@ export default async function CertificatePage({ params }: { params: Promise<{ sc
             <dt className="text-gray-400">Checked for</dt>
             <dd className="text-gray-800 font-medium">{org?.name ?? "Greenlit workspace"}</dd>
           </div>
+          {ruleSet && (
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-400 shrink-0">Checked against</dt>
+              <dd className="text-gray-800 text-right">{ruleSet}</dd>
+            </div>
+          )}
           <div className="flex justify-between gap-4">
             <dt className="text-gray-400">Date</dt>
             <dd className="text-gray-800">{date}</dd>

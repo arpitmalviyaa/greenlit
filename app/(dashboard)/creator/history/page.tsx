@@ -33,7 +33,7 @@ export default async function CreatorHistoryPage() {
         <div className="border border-dashed border-gray-200 rounded-lg p-10 text-center bg-white">
           <ShieldCheck className="w-10 h-10 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-600 font-medium">No checks yet</p>
-          <p className="text-sm text-gray-400 mt-1">Your content checks and certificates will show up here.</p>
+          <p className="text-sm text-gray-400 mt-1">Your content checks and clearance records will show up here.</p>
           <Link
             href="/creator"
             className="inline-block mt-4 text-sm font-medium bg-[#1D9E75] text-white rounded-md px-4 py-2 hover:opacity-90"
@@ -63,7 +63,7 @@ export default async function CreatorHistoryPage() {
                       target="_blank"
                       className="text-xs text-[#157A5B] inline-flex items-center gap-1 hover:underline"
                     >
-                      <Award className="w-3.5 h-3.5" /> Certificate
+                      <Award className="w-3.5 h-3.5" /> Record
                     </Link>
                   )}
                 </div>

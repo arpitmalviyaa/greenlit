@@ -51,8 +51,8 @@ function CertificateHero({ scanId }: { scanId: string }) {
     <div className="rounded-xl border border-[#1D9E75]/30 bg-white px-5 py-4 flex flex-wrap items-center gap-3">
       <Award className="w-6 h-6 text-[#1D9E75] shrink-0" />
       <div className="flex-1 min-w-[180px]">
-        <p className="text-sm font-semibold text-gray-900">Clearance certificate ready</p>
-        <p className="text-xs text-gray-500">Share it with the brand or keep it for your records.</p>
+        <p className="text-sm font-semibold text-gray-900">Clearance recorded</p>
+        <p className="text-xs text-gray-500">Verdict, date and content fingerprint are on file in your workspace.</p>
       </div>
       <a
         href={`/certificate/${scanId}`}
@@ -60,14 +60,14 @@ function CertificateHero({ scanId }: { scanId: string }) {
         rel="noopener noreferrer"
         className="text-xs font-medium bg-[#1D9E75] text-white rounded-md px-3.5 py-2 hover:opacity-90"
       >
-        View certificate
+        View record
       </a>
       <button
         onClick={copyLink}
-        className="text-xs font-medium border border-gray-200 text-gray-700 rounded-md px-3.5 py-2 hover:bg-gray-50 inline-flex items-center gap-1.5"
+        className="text-xs font-medium text-gray-500 hover:text-gray-700 inline-flex items-center gap-1.5"
       >
         <Link2 className="w-3.5 h-3.5" />
-        {copied ? "Link copied ✓" : "Copy share link"}
+        {copied ? "Link copied ✓" : "Copy link"}
       </button>
     </div>
   );

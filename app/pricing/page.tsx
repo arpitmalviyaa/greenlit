@@ -18,7 +18,7 @@ const PLANS = [
     features: [
       "Unlimited contract analyses",
       "Unlimited content checks",
-      "Clearance certificates",
+      "Dated clearance records",
       "Deal history & records",
       "Mobile-first check flow",
     ],

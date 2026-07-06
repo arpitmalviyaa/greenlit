@@ -6,8 +6,8 @@ export default function ContentCheckPage() {
       <div>
         <h1 className="text-lg font-semibold text-gray-900">Content Check</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Paste a script, caption or post. Get a clear verdict — and a shareable clearance
-          certificate when it&apos;s good to go.
+          Paste a script, caption or post. Get a clear verdict — recorded with a date and
+          content fingerprint when it&apos;s good to go.
         </p>
       </div>
       <ContentCheckPanel />

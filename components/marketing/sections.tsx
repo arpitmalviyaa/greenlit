@@ -26,7 +26,7 @@ const ACTS: Array<{ n: string; title: string; body: string; still: string; alt: 
   {
     n: "03",
     title: "Approve, certify, move.",
-    body: "Sign off with a record behind it, and issue a clearance certificate the brand can open from a link. Then on to the next deal.",
+    body: "Sign off with a record behind it — verdict, content fingerprint, who approved it, all on file in your workspace. Then on to the next deal.",
     still: "/still-certify.jpg",
     alt: "Cleared contract summary ready to sign with confidence",
   },
@@ -102,7 +102,7 @@ const QA: Array<{ q: string; a: React.ReactNode }> = [
     a: (
       <>
         Upload a live contract and get the verdict and negotiation wording in minutes. Check
-        campaign content before it goes live. Issue your first clearance certificate.
+        campaign content before it goes live. Every check lands on the record from day one.
       </>
     ),
   },
@@ -130,62 +130,66 @@ export function Questions() {
   );
 }
 
-/* ── S5 — The certificate ──────────────────────────────────────────────── */
+/* ── S5 — The record ───────────────────────────────────────────────────── */
 
 export function Certificate() {
   return (
     <section className="bg-[#EFECE4] border-y border-[#111]/5">
       <div className="max-w-6xl mx-auto px-5 py-20 md:py-28 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <Reveal>
-          <p className="ed-label text-[#111]/45">The certificate</p>
+          <p className="ed-label text-[#111]/45">The record</p>
           <h2 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.01em] leading-[1.1] text-3xl md:text-[2.75rem] mt-4">
-            This is what your brand sees.
+            For the day someone asks what you checked.
           </h2>
           <p className="ed-body mt-5 text-[#111]/65 !text-[1.0625rem]">
-            When content clears, Greenlit issues a clearance certificate — a clean public page at
-            an unguessable address, showing the verdict, the date and a fingerprint of the exact
-            content checked. No brand logins, no portal to manage.
-          </p>
-          <p className="mt-6 font-[family-name:var(--font-display)] italic text-[#1D9E75] text-lg">
-            Agencies in the early cohort are already sending these.
+            Every analysis and clearance produces a dated record — the verdict, a fingerprint of
+            the exact content, who approved it, and the rules it was checked against — stored in
+            your workspace. Eight months later, when a brand disputes what was agreed or a
+            regulator asks questions, you&apos;re not reconstructing from screenshots. You open
+            the file.
           </p>
         </Reveal>
         <Reveal delay={100}>
-          {/* Specimen certificate, framed like an object */}
-          <div className="bg-white border border-[#111]/10 rounded-2xl p-8 md:p-10 shadow-[0_30px_80px_rgba(17,17,17,0.16)] md:rotate-1">
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-xl font-bold tracking-tight text-[#1D9E75] font-[family-name:var(--font-display)]">
-                greenlit
-              </span>
-              <span className="ed-label text-[#111]/35 !text-[9px]">Content clearance certificate</span>
+          {/* Specimen record, filed — case-file presentation */}
+          <div className="relative">
+            <div className="absolute inset-0 translate-x-2 translate-y-2 bg-white/50 border border-[#111]/10 rounded-2xl" aria-hidden />
+            <div className="absolute inset-0 translate-x-1 translate-y-1 bg-white/70 border border-[#111]/10 rounded-2xl" aria-hidden />
+            <div className="relative">
+              <div className="inline-block bg-[#E5E0D4] border border-[#111]/10 border-b-0 rounded-t-lg px-4 py-1.5 ml-6">
+                <span className="ed-label !text-[9px] text-[#111]/50">Record · Content clearance</span>
+              </div>
+              <div className="bg-white border border-[#111]/10 rounded-2xl rounded-tl-none p-8 md:p-10 shadow-[0_24px_60px_rgba(17,17,17,0.12)]">
+                <div className="flex items-center justify-between mb-6">
+                  <p className="font-[family-name:var(--font-display)] text-2xl text-[#111]">Cleared to publish</p>
+                  <div className="w-9 h-9 rounded-full bg-[#1D9E75]/10 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5 text-[#1D9E75]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <dl className="space-y-2.5 text-sm border-t border-[#111]/10 pt-5">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[#111]/40 shrink-0">Checked against</dt>
+                    <dd className="text-[#111]/80 text-right">ASCI Code · SEBI Circular · Consumer Protection Act 2019</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[#111]/40">Approved by</dt>
+                    <dd className="text-[#111]/80">Workspace admin</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[#111]/40">Date</dt>
+                    <dd className="text-[#111]/80">6 July 2026</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[#111]/40 shrink-0">Content fingerprint</dt>
+                    <dd className="text-[#111]/50 font-mono text-[10px] break-all text-right">
+                      9f2ac1…e47b0d
+                    </dd>
+                  </div>
+                </dl>
+                <p className="text-[11px] text-[#111]/35 mt-6">Recorded by Greenlit.</p>
+              </div>
             </div>
-            <div className="text-center py-4">
-              <div className="mx-auto w-14 h-14 rounded-full bg-[#1D9E75]/10 flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-[#1D9E75]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <p className="font-[family-name:var(--font-display)] text-2xl text-[#111]">Cleared to publish</p>
-              <p className="text-sm text-[#111]/50 mt-2">
-                This caption passed Greenlit&apos;s compliance check for the Indian market.
-              </p>
-            </div>
-            <dl className="mt-6 space-y-2.5 text-sm border-t border-[#111]/10 pt-5">
-              <div className="flex justify-between gap-4">
-                <dt className="text-[#111]/40">Checked for</dt>
-                <dd className="text-[#111]/80 font-medium">Greenlit workspace</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-[#111]/40">Date</dt>
-                <dd className="text-[#111]/80">6 July 2026</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-[#111]/40 shrink-0">Content fingerprint</dt>
-                <dd className="text-[#111]/50 font-mono text-[10px] break-all text-right">
-                  9f2ac1…e47b0d
-                </dd>
-              </div>
-            </dl>
           </div>
         </Reveal>
       </div>

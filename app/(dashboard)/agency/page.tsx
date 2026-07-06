@@ -77,8 +77,8 @@ export default async function AgencyDashboardPage() {
             <ShieldCheck className="w-8 h-8 text-[#1D9E75] mb-4" />
             <h2 className="text-xl font-semibold text-gray-900">Check content before it goes live</h2>
             <p className="text-sm text-gray-500 mt-2">
-              Paste a script, caption or post and get a clear verdict with a shareable clearance
-              certificate.
+              Paste a script, caption or post and get a clear verdict that goes on the record —
+              dated, fingerprinted, on file.
             </p>
           </Link>
         </div>

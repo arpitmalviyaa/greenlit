@@ -7,7 +7,7 @@ import { Smartphone, Award, History } from "lucide-react";
 export const metadata: Metadata = {
   title: "Greenlit for Creators",
   description:
-    "Check a contract or a caption from your phone before you commit. Shareable clearance certificates and a clean record of every deal.",
+    "Check a contract or a caption from your phone before you commit. Every check on a dated record, and a clean history of every deal.",
 };
 
 const FEATURES = [
@@ -18,13 +18,13 @@ const FEATURES = [
   },
   {
     icon: Award,
-    title: "A certificate brands trust",
-    body: "When content clears, you get a shareable clearance certificate. Send the link to the brand — professional, verifiable, done.",
+    title: "A dated record of every clearance",
+    body: "When content clears, the check goes on file — verdict, date, content fingerprint, and the rules it was checked against. If anyone ever asks what you checked, the answer is already written down.",
   },
   {
     icon: History,
     title: "Every deal on record",
-    body: "Your contracts, checks and certificates in one history. When a dispute comes up eight months later, you have the receipts.",
+    body: "Your contracts, checks and clearances in one history. When a dispute comes up eight months later, you have the receipts.",
   },
 ];
 
