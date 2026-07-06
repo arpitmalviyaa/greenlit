@@ -1,0 +1,114 @@
+{
+  "generatedAt": "2026-07-04T17:50:00+05:30",
+  "verdict": "BACKEND READY WITH NON-BLOCKING GAPS",
+  "frontendRedevelopmentMayBegin": true,
+  "repo": "/Users/arpitmalviya/Downloads/greenlit",
+  "productionUrl": "https://app.getgreenlit.in",
+  "previousDeployment": "dpl_7epTUi4618UEMKoUyxm9wwUVdGWh",
+  "deployment": "dpl_CxpQ6z4Aq7keRkWbMSNukRfta9zr",
+  "commit": "a39402d60b1604c750807422aedf19e0e9941778",
+  "originalProductionCommit": "9b7cc2b0bc3de59bd0523b74557ef4f47093636d",
+  "testAccountUsed": true,
+  "credentialsPrinted": false,
+  "authenticatedBrowserAutomationCompleted": true,
+  "routeCount": 68,
+  "migrationCount": 37,
+  "tablesDeclared": 80,
+  "rlsEnabledTables": 79,
+  "policiesDeclared": 192,
+  "liveFlows": [
+    {
+      "flow": "login",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    },
+    {
+      "flow": "agency onboarding",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    },
+    {
+      "flow": "agency dashboard",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    },
+    {
+      "flow": "contract upload/analyse",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    },
+    {
+      "flow": "workspace contract comments",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": "authenticated browser fetch, no visible comments UI found"
+    },
+    {
+      "flow": "final-check start",
+      "status": "pass",
+      "statusCode": 200,
+      "error": null,
+      "via": "authenticated browser fetch, no visible agency start button found"
+    },
+    {
+      "flow": "proof upload",
+      "status": "pass",
+      "statusCode": 200,
+      "error": null,
+      "via": "authenticated browser fetch, approval page UI only supports SOW ID"
+    },
+    {
+      "flow": "approvals/proof UI",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    },
+    {
+      "flow": "billing status",
+      "status": "pass",
+      "statusCode": null,
+      "error": null,
+      "via": null
+    }
+  ],
+  "consoleErrors": [],
+  "networkErrors": {
+    "count": 52,
+    "classification": "all observed requestfailed entries were net::ERR_ABORTED during automation navigation/prefetch churn; no unexplained HTTP 4xx/5xx remained in live harness summary",
+    "buckets": {
+      "net::ERR_ABORTED": 52
+    }
+  },
+  "defectsFound": [
+    {
+      "id": "GL-BE-001",
+      "severity": "high",
+      "area": "proof upload isolation",
+      "status": "fixed-deployed",
+      "summary": "app/api/proof/upload accepted contract_id/sow_id/approval_request_id before proving same-organisation ownership, allowing service-role insert attempts against foreign resource IDs."
+    }
+  ],
+  "defectsFixed": [
+    "GL-BE-001"
+  ],
+  "nonBlockingGaps": [
+    "No deployed worker/cron consumer was found for background_jobs; app writes queue rows and tests in-memory queue logic, but production job execution remains partial/not implemented.",
+    "Email ingest is implemented as an authenticated/manual backend route, not a signed external provider webhook.",
+    "Billing provider calls are guarded and status fails safely, but live charge/checkout was not executed because no verified production test-mode billing was used.",
+    "Current frontend lacks obvious visible controls for comments, final-check start, and contract-scoped proof upload, though backend APIs passed via authenticated browser fetch."
+  ],
+  "artifactSources": {
+    "liveReport": "/tmp/greenlit-authenticated-production-audit-20260704113824568.json",
+    "isolationReport": "/tmp/greenlit-proof-isolation-20260704114236014.json"
+  }
+}

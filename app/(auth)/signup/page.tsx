@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { JURISDICTIONS, type JurisdictionCode } from "@/lib/utils/jurisdictions";
 import { cn } from "@/lib/utils/cn";
+import { track } from "@/lib/analytics";
 
 type Step = "account" | "jurisdiction" | "verify";
 
@@ -23,55 +24,71 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   // IN always pre-selected and locked
   const [selectedJurisdictions, setSelectedJurisdictions] = useState<Set<JurisdictionCode>>(new Set<JurisdictionCode>(["IN"]));
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  async function handleResendConfirmation() {
+    setResendState("sending");
+    const supabase = createClient();
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setResendState(resendError ? "failed" : "sent");
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    track("signup_start");
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // 1. Create auth user
-    const { data: authData, error: signupError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+      // 1. Create auth user
+      const { data: authData, error: signupError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (signupError) {
-      setError(signupError.message);
+      if (signupError) {
+        setError(signupError.message === "Failed to fetch" ? "Signup could not reach the auth service. Please check your connection and try again." : signupError.message);
+        return;
+      }
+
+      if (!authData.user) {
+        setError("Signup failed. Please try again.");
+        return;
+      }
+
+      // Profile row is created by the handle_new_user trigger on auth.users INSERT.
+      // Do not insert here — there is no session until email is confirmed, so
+      // auth.uid() would be null and RLS would reject the insert.
+
+      setStep("jurisdiction");
+    } catch {
+      setError("Signup could not reach the auth service. Please check your connection and try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!authData.user) {
-      setError("Signup failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // Profile row is created by the handle_new_user trigger on auth.users INSERT.
-    // Do not insert here — there is no session until email is confirmed, so
-    // auth.uid() would be null and RLS would reject the insert.
-
-    setLoading(false);
-    setStep("jurisdiction");
   }
 
   async function handleJurisdictionContinue() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (session) {
-      // Logged in — create org now with jurisdiction codes
-      const codes = Array.from(selectedJurisdictions);
-      try {
+      if (session) {
+        // Logged in — create org now with jurisdiction codes
+        const codes = Array.from(selectedJurisdictions);
         const resp = await fetch("/api/org/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -80,19 +97,18 @@ export default function SignupPage() {
         if (!resp.ok) {
           const d = await resp.json() as { error?: string };
           setError(d.error ?? "Failed to continue");
-          setLoading(false);
           return;
         }
-      } catch {
-        setError("Network error. Please try again.");
-        setLoading(false);
-        return;
+        router.push("/agency/onboarding");
+        router.refresh();
+      } else {
+        // Email confirm required — advance to verify step
+        track("signup_complete");
+        setStep("verify");
       }
-      router.push("/agency/onboarding");
-      router.refresh();
-    } else {
-      // Email confirm required — advance to verify step
-      setStep("verify");
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
@@ -120,12 +136,31 @@ export default function SignupPage() {
             Click it to activate your account, then sign in.
           </CardDescription>
         </CardHeader>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
           <Link href="/login" className="w-full">
             <Button variant="outline" className="w-full border-slate-600 text-slate-300">
               Go to sign in
             </Button>
           </Link>
+          <p className="text-sm text-slate-400 text-center">
+            {resendState === "sent" ? (
+              "Confirmation email sent — check your inbox and spam folder."
+            ) : resendState === "failed" ? (
+              "Could not resend right now. Please wait a minute and try again."
+            ) : (
+              <>
+                Didn&apos;t get it?{" "}
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendState === "sending"}
+                  className="underline text-green-400 hover:text-green-300"
+                >
+                  {resendState === "sending" ? "Sending…" : "Resend email"}
+                </button>
+              </>
+            )}
+          </p>
         </CardFooter>
       </Card>
     );

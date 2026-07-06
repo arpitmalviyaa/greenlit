@@ -2,27 +2,15 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/anthropic/client";
 import { MODELS } from "@/lib/anthropic/utils";
+import { AIOutputError, callStructured } from "@/lib/anthropic/structured";
 import { CONTRACT_EXTRACT_SYSTEM, contractExtractUser } from "@/lib/anthropic/prompts/contract-extract";
-import { CONTRACT_ANALYSE_SYSTEM, contractAnalyseUser } from "@/lib/anthropic/prompts/contract-analyse";
+import {
+  CONTRACT_ANALYSE_SYSTEM,
+  ContractAnalysisSchema,
+  contractAnalyseUser,
+  type ContractAnalysis,
+} from "@/lib/anthropic/prompts/contract-analyse";
 import { getRelevantCorpus, formatCorpusForPrompt } from "@/lib/corpus/index";
-
-interface AnalysisResult {
-  risk_score: number;
-  verdict: "safe" | "caution" | "high_risk" | "lawyer_required";
-  risky_clauses: Array<{
-    clause_text: string;
-    issue: string;
-    severity: "low" | "medium" | "high" | "critical";
-    suggestion: string;
-  }>;
-  missing_clauses: Array<{ clause_type: string; why_needed: string }>;
-  red_flags: Array<{ flag: string; explanation: string }>;
-  payment_risk: "low" | "medium" | "high";
-  ip_risk: "low" | "medium" | "high";
-  termination_risk: "low" | "medium" | "high";
-  lawyer_escalation_required: boolean;
-  lawyer_escalation_reasons: string[];
-}
 
 function safeParse<T>(text: string): T | null {
   try {
@@ -108,27 +96,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Clause extraction failed: ${msg}` }, { status: 500 });
   }
 
-  // ── PASS 2: Sonnet — deep analysis on clause list only ────────────────────
-  let analysis: AnalysisResult;
+  // ── PASS 2: Sonnet — deep analysis, canonical structured output ──────────
+  let analysis: ContractAnalysis;
   try {
-    const analysisResp = await anthropic.messages.create({
+    analysis = await callStructured({
+      feature: "counsel.analyse",
+      promptVersion: "v3",
       model: MODELS.SONNET,
-      max_tokens: 5000,
+      maxTokens: 5000,
       system: CONTRACT_ANALYSE_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: contractAnalyseUser(extractedJson, contract.title, effectiveJurisdiction, corpus_context),
-        },
-      ],
+      user: contractAnalyseUser(extractedJson, contract.title, effectiveJurisdiction, corpus_context),
+      schema: ContractAnalysisSchema,
+      toolName: "report_analysis",
     });
-    const raw = analysisResp.content[0].type === "text" ? analysisResp.content[0].text : "";
-    const parsed = safeParse<AnalysisResult>(raw);
-    if (!parsed) throw new Error("Sonnet returned invalid JSON");
-    analysis = parsed;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Sonnet analysis failed";
-    return NextResponse.json({ error: `Analysis failed: ${msg}` }, { status: 500 });
+    if (err instanceof AIOutputError) {
+      return NextResponse.json(
+        { error: "Analysis could not produce a valid result. Please retry.", code: err.code },
+        { status: 502 }
+      );
+    }
+    const msg = err instanceof Error ? err.message : "Analysis failed";
+    return NextResponse.json({ error: `Analysis failed: ${msg}`, code: "AI_REQUEST_FAILED" }, { status: 502 });
   }
 
   // Normalise risk_score

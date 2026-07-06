@@ -31,3 +31,5 @@ supabase/.temp/
 
 # local agent/tooling state
 .claude/
+
+.gstack/

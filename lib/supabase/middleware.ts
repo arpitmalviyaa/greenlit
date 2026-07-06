@@ -7,7 +7,7 @@ import { publicSupabaseEnv, StartupConfigError } from "@/lib/env";
 // Role-based routing and profile lookups live in server layouts, not here,
 // to stay well within Edge Runtime CPU limits.
 
-const PUBLIC_ROUTES = ["/api/health", "/api/ready", "/login", "/signup", "/auth/callback", "/invite", "/pricing"];
+const PUBLIC_ROUTES = ["/api/health", "/api/ready", "/login", "/signup", "/auth/callback", "/auth/confirm", "/invite", "/pricing", "/certificate", "/agencies", "/creators", "/security", "/api/public"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -71,7 +71,7 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   userId = user?.id ?? null;
 
-  const isPublicRoute = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+  const isPublicRoute = pathname === "/" || PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
   // Unauthenticated user hitting a protected route → send to login
   if (!user && !isPublicRoute) {

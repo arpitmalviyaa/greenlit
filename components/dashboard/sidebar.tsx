@@ -1,89 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 import type { UserRole } from "@/types/database.types";
 import {
   FileText,
-  Shield,
-  Users,
-  BarChart3,
-  AlertTriangle,
+  ShieldCheck,
   CheckSquare,
-  Package,
-  Zap,
-  MessageSquare,
-  BookOpen,
+  Briefcase,
   Settings,
   LogOut,
   Home,
-  Eye,
-  Scale,
-  Clock,
-  Send,
-  Mic,
-  Link2,
-  Crosshair,
-  Bot,
-  Briefcase,
-  Globe,
-  CreditCard,
-  FileCheck2,
+  History,
 } from "lucide-react";
 
 type NavItem = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
 };
 
-// Greenlit narrowed to 4 pillars (2026-06-19 decision). Orphaned features archived;
-// nav below reflects only the live pillar surface.
+// v1 surface: exactly six items (2026-07 restructure). Everything else is
+// feature-flagged off — see FEATURE_FLAGS.md.
 const AGENCY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/agency", icon: Home },
-  // Contract Review
-  { label: "Counsel", href: "/agency/counsel", icon: FileText },
-  { label: "NDA Scanner", href: "/agency/nda-scanner", icon: Eye },
-  { label: "Send Scanner", href: "/agency/send-scanner", icon: Send },
-  // Negotiation Assistant
-  { label: "Deal Rooms", href: "/agency/deals", icon: MessageSquare },
-  { label: "Term Sheets", href: "/agency/term-sheets", icon: FileText },
-  { label: "Scope Monitor", href: "/agency/scope", icon: Package },
-  { label: "Meeting Counsel", href: "/agency/meeting", icon: Mic },
-  // Final Contract Check
-  { label: "Delivery", href: "/agency/delivery", icon: CheckSquare },
+  { label: "Contracts", href: "/agency/contracts", icon: FileText },
+  { label: "Content Check", href: "/agency/content-check", icon: ShieldCheck },
   { label: "Approvals", href: "/agency/approvals", icon: CheckSquare },
-  { label: "Timeline", href: "/agency/timeline", icon: Clock },
-  // Knowledge Repository
-  { label: "Legal Playbook", href: "/agency/playbook", icon: BookOpen },
-  { label: "Cross-Reference", href: "/agency/cross-reference", icon: Globe },
-  { label: "Proof Vault", href: "/agency/approvals", icon: Shield },
+  { label: "Deals", href: "/agency/deals", icon: Briefcase },
+  { label: "Settings", href: "/agency/settings", icon: Settings },
 ];
 
 const CREATOR_NAV: NavItem[] = [
-  { label: "Contracts", href: "/creator?view=contracts", icon: FileText },
-  { label: "Negotiation Assistant", href: "/creator?view=negotiation", icon: MessageSquare },
-  { label: "Final Contract Upload", href: "/creator?view=final", icon: FileCheck2 },
-  { label: "Knowledge", href: "/creator?view=knowledge", icon: BookOpen },
+  { label: "Check", href: "/creator", icon: ShieldCheck },
+  { label: "My Deals", href: "/creator/deals", icon: Briefcase },
+  { label: "History", href: "/creator/history", icon: History },
 ];
 
 const MANAGER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/manager", icon: Home },
-  { label: "Campaigns", href: "/manager/campaigns", icon: BarChart3 },
-  { label: "Contracts", href: "/manager/contracts", icon: FileText },
-  { label: "Approvals", href: "/manager/approvals", icon: CheckSquare },
-  { label: "Scope", href: "/manager/scope", icon: Package },
-  { label: "Comms", href: "/manager/comms", icon: MessageSquare },
+  { label: "Contracts", href: "/agency/contracts", icon: FileText },
+  { label: "Approvals", href: "/agency/approvals", icon: CheckSquare },
+  { label: "Deals", href: "/agency/deals", icon: Briefcase },
 ];
 
 const BRAND_NAV: NavItem[] = [
   { label: "Dashboard", href: "/brand", icon: Home },
   { label: "Approvals", href: "/brand/approvals", icon: CheckSquare },
-  { label: "Compliance Certs", href: "/brand/certs", icon: Shield },
-  { label: "Evidence", href: "/brand/evidence", icon: Package },
 ];
 
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
@@ -104,11 +69,11 @@ interface SidebarProps {
   role: UserRole;
   orgName: string;
   userName: string;
+  planName?: string;
 }
 
-export function Sidebar({ role, orgName, userName }: SidebarProps) {
+export function Sidebar({ role, orgName, userName, planName }: SidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const nav = NAV_BY_ROLE[role];
 
@@ -135,12 +100,11 @@ export function Sidebar({ role, orgName, userName }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {nav.map((item) => {
+          const isActive =
+            item.href === "/agency" || item.href === "/creator"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
-          const [itemPath, itemQuery] = item.href.split("?");
-          const expectedView = itemQuery ? new URLSearchParams(itemQuery).get("view") : null;
-          const isActive = expectedView
-            ? pathname === itemPath && (searchParams.get("view") ?? "contracts") === expectedView
-            : pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
@@ -154,11 +118,6 @@ export function Sidebar({ role, orgName, userName }: SidebarProps) {
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="hidden md:inline">{item.label}</span>
-              {item.badge && (
-                <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
-                  {item.badge}
-                </span>
-              )}
             </Link>
           );
         })}
@@ -166,8 +125,16 @@ export function Sidebar({ role, orgName, userName }: SidebarProps) {
 
       {/* User footer */}
       <div className="px-3 py-4 border-t border-white/10 space-y-0.5">
-        <div className="hidden px-3 py-2 md:block">
+        <div className="hidden px-3 py-2 md:flex md:items-center md:justify-between md:gap-2">
           <p className="text-zinc-300 text-sm font-medium truncate">{userName}</p>
+          {planName && (
+            <Link
+              href="/agency/settings"
+              className="text-[10px] uppercase tracking-wide border border-white/20 rounded px-1.5 py-0.5 text-zinc-400 hover:text-white"
+            >
+              {planName}
+            </Link>
+          )}
         </div>
         <button
           onClick={handleLogout}

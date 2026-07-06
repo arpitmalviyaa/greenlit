@@ -19,22 +19,27 @@ export default function AgencyOnboardingPage() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/org/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: agencyName }),
-    });
+    try {
+      const res = await fetch("/api/org/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: agencyName }),
+      });
 
-    const data = await res.json() as { error?: string; organisation?: { id: string } };
+      const data = await res.json() as { error?: string; organisation?: { id: string } };
 
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong");
+        return;
+      }
+
+      router.push("/agency");
+      router.refresh();
+    } catch {
+      setError("Could not create the workspace. Please check your connection and try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/agency");
-    router.refresh();
   }
 
   return (

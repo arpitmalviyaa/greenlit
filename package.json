@@ -12,8 +12,10 @@
     "test:phase26-28": "node --test tests/phase26-28.test.mjs",
     "test:phase29-30": "node --test tests/phase29-30.test.mjs",
     "test:phases": "npm run test:phase24-25 && npm run test:phase26-28 && npm run test:phase29-30",
-    "test:unit": "npm run test:phase24-25",
+    "test:unit": "npm run test:phase24-25 && npm run test:ai-schemas",
     "test:integration": "npm run test:phase26-28 && npm run test:phase29-30",
+    "test:e2e:live": "node scripts/live-functionality-audit.mjs",
+    "test:backend-audit": "node --test tests/backend-audit.test.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "migration:audit": "node scripts/migration-audit.mjs",
     "supabase:audit": "node scripts/supabase-audit.mjs",
@@ -24,7 +26,10 @@
     "smoke": "node scripts/smoke-tests.mjs",
     "env:check": "node scripts/check-env.mjs",
     "verify:nonlive": "node scripts/verify-nonlive.mjs",
-    "verify:release": "node scripts/verify-release.mjs"
+    "verify:release": "node scripts/verify-release.mjs",
+    "test:ai-schemas": "node --test tests/redflags-schema.test.mjs",
+    "qa:cross-tenant": "node scripts/qa-cross-tenant.mjs",
+    "qa:prod-flow": "node scripts/qa-prod-flow.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -47,7 +52,8 @@
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^3.3.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",

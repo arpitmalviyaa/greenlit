@@ -28,7 +28,12 @@ for (const file of files) {
   if (/storagePath\s*=.*\$\{file\.name\}|Date\.now\(\)[^;\n]*\+\s*file\.name/.test(text)) {
     issues.push(`${file}: raw upload filename used in storage path`);
   }
-  if (/(placeholder implementation|not implemented|pretend integration|configure real|local_\$\{?Date\.now)/i.test(text) && !file.startsWith("docs/") && !file.startsWith("tests/")) {
+  if (
+    /(placeholder implementation|not implemented|pretend integration|configure real|local_\$\{?Date\.now)/i.test(text) &&
+    !file.startsWith("docs/") &&
+    !file.startsWith("tests/") &&
+    !file.startsWith("reports/")
+  ) {
     issues.push(`${file}: production code contains placeholder marker`);
   }
 }

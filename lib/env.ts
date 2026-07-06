@@ -13,8 +13,8 @@ export function requiredEnv(key: string, env: NodeJS.ProcessEnv = process.env): 
 
 export function publicSupabaseEnv(env: NodeJS.ProcessEnv = process.env) {
   return {
-    url: requiredEnv("NEXT_PUBLIC_SUPABASE_URL", env),
-    anonKey: requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", env),
+    url: requiredEnvValue("NEXT_PUBLIC_SUPABASE_URL", env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL),
+    anonKey: requiredEnvValue("NEXT_PUBLIC_SUPABASE_ANON_KEY", env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
   };
 }
 
@@ -30,4 +30,9 @@ export function startupErrorResponse(error: unknown): Response {
     return Response.json({ error: "Service is not configured", code: "CONFIGURATION_ERROR" }, { status: 503 });
   }
   throw error;
+}
+
+function requiredEnvValue(key: string, value: string | undefined): string {
+  if (!value) throw new StartupConfigError(`${key} is required`);
+  return value;
 }
