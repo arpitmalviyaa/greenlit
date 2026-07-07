@@ -16,7 +16,7 @@ export default async function AgencyDashboardPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile?.organisation_id) redirect("/agency/onboarding");
+  if (!profile?.organisation_id) redirect("/onboarding");
   const orgId = profile.organisation_id;
 
   const [contractsRes, approvalsRes, scansRes, dealsRes] = await Promise.all([

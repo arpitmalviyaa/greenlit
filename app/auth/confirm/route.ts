@@ -32,6 +32,11 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${url.origin}/login?error=confirm_link_expired`);
   }
 
+  // Password recovery: the session is now live; send the user to set a new password.
+  if (type === "recovery") {
+    return NextResponse.redirect(`${url.origin}/reset-password`);
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     const { data: profile } = await supabase
@@ -42,7 +47,7 @@ export async function GET(request: Request) {
 
     if (profile) {
       const destinations: Record<string, string> = {
-        agency_admin: profile.onboarding_done ? "/agency" : "/agency/onboarding",
+        agency_admin: profile.onboarding_done ? "/agency" : "/onboarding",
         creator: "/creator",
         manager: "/manager",
         brand: "/brand",

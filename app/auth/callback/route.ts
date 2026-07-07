@@ -43,5 +43,5 @@ export async function GET(request: Request) {
   }
 
   // Session established — send to agency onboarding
-  return NextResponse.redirect(`${origin}/agency/onboarding`);
+  return NextResponse.redirect(`${origin}/onboarding`);
 }

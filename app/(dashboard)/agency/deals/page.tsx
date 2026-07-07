@@ -15,7 +15,7 @@ export default async function DealsPage() {
     .select("organisation_id")
     .eq("id", user.id)
     .single();
-  if (!profile?.organisation_id) redirect("/agency/onboarding");
+  if (!profile?.organisation_id) redirect("/onboarding");
 
   const { data: deals } = await supabase
     .from("deal_rooms")

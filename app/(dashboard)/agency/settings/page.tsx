@@ -12,7 +12,7 @@ export default async function SettingsPage() {
     .select("organisation_id, name, role")
     .eq("id", user.id)
     .single();
-  if (!profile?.organisation_id) redirect("/agency/onboarding");
+  if (!profile?.organisation_id) redirect("/onboarding");
 
   const [{ data: org }, { data: sub }, { data: jurs }] = await Promise.all([
     supabase.from("organisations").select("name, slug").eq("id", profile.organisation_id).single(),

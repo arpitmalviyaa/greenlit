@@ -17,12 +17,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const body = await request.json() as { name?: string; jurisdiction_codes?: string[] };
-  const { name, jurisdiction_codes } = body;
+  const body = await request.json() as { name?: string; account_type?: string; jurisdiction_codes?: string[] };
+  const { name, account_type, jurisdiction_codes } = body;
 
   if (!name || name.trim().length < 2) {
-    return NextResponse.json({ error: "Organisation name must be at least 2 characters" }, { status: 400 });
+    return NextResponse.json({ error: "Workspace name must be at least 2 characters" }, { status: 400 });
   }
+
+  // Map the account-type choice to a role + its dashboard.
+  const ROLE_MAP: Record<string, { role: string; redirect: string }> = {
+    agency: { role: "agency_admin", redirect: "/agency" },
+    manager: { role: "manager", redirect: "/manager" },
+    creator: { role: "creator", redirect: "/creator" },
+    brand: { role: "brand", redirect: "/brand" },
+  };
+  const mapped = ROLE_MAP[account_type ?? "agency"] ?? ROLE_MAP.agency;
 
   // Use service role to bypass RLS for org creation (user has no org yet)
   const serviceSupabase = await createServiceClient();
@@ -55,10 +64,10 @@ export async function POST(request: Request) {
     return internalError("app/api/org/create/route.ts", { message: orgError?.message ?? null });
   }
 
-  // Link profile to org and mark onboarding done
+  // Link profile to org, set the chosen role, mark onboarding done
   const { error: profileError } = await serviceSupabase
     .from("profiles")
-    .update({ organisation_id: org.id, onboarding_done: true })
+    .update({ organisation_id: org.id, role: mapped.role, onboarding_done: true })
     .eq("id", user.id);
 
   if (profileError) {
@@ -79,5 +88,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ organisation: org }, { status: 201 });
+  return NextResponse.json({ organisation: org, redirect: mapped.redirect }, { status: 201 });
 }

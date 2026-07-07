@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
         if (profile) {
           const destinations: Record<string, string> = {
-            agency_admin: profile.onboarding_done ? "/agency" : "/agency/onboarding",
+            agency_admin: profile.onboarding_done ? "/agency" : "/onboarding",
             creator: "/creator",
             manager: "/manager",
             brand: "/brand",

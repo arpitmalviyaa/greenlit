@@ -2,28 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { JURISDICTIONS, type JurisdictionCode } from "@/lib/utils/jurisdictions";
-import { cn } from "@/lib/utils/cn";
 import { track } from "@/lib/analytics";
-
-type Step = "account" | "jurisdiction" | "verify";
+import { SocialAuth, OrDivider } from "@/components/auth/social-auth";
+import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY } from "@/lib/ui/auth";
 
 export default function SignupPage() {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>("account");
+  const [step, setStep] = useState<"account" | "verify">("account");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  // IN always pre-selected and locked
-  const [selectedJurisdictions, setSelectedJurisdictions] = useState<Set<JurisdictionCode>>(new Set<JurisdictionCode>(["IN"]));
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
   async function handleResendConfirmation() {
@@ -45,274 +36,123 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-
-      // 1. Create auth user
-      const { data: authData, error: signupError } = await supabase.auth.signUp({
+      const { data, error: signupError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { name },
+          data: { name, marketing_opt_in: marketingOptIn },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (signupError) {
-        setError(signupError.message === "Failed to fetch" ? "Signup could not reach the auth service. Please check your connection and try again." : signupError.message);
+        setError(signupError.message === "Failed to fetch" ? "Signup could not reach the service. Check your connection and try again." : signupError.message);
         return;
       }
-
-      if (!authData.user) {
+      if (!data.user) {
         setError("Signup failed. Please try again.");
         return;
       }
-
-      // Profile row is created by the handle_new_user trigger on auth.users INSERT.
-      // Do not insert here — there is no session until email is confirmed, so
-      // auth.uid() would be null and RLS would reject the insert.
-
-      setStep("jurisdiction");
+      // Profile is created by the handle_new_user trigger. Workspace + role are
+      // chosen after email confirmation, in onboarding.
+      track("signup_complete");
+      setStep("verify");
     } catch {
-      setError("Signup could not reach the auth service. Please check your connection and try again.");
+      setError("Signup could not reach the service. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleJurisdictionContinue() {
-    setError("");
-    setLoading(true);
-
-    try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        // Logged in — create org now with jurisdiction codes
-        const codes = Array.from(selectedJurisdictions);
-        const resp = await fetch("/api/org/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.trim() || "My Agency", jurisdiction_codes: codes }),
-        });
-        if (!resp.ok) {
-          const d = await resp.json() as { error?: string };
-          setError(d.error ?? "Failed to continue");
-          return;
-        }
-        router.push("/agency/onboarding");
-        router.refresh();
-      } else {
-        // Email confirm required — advance to verify step
-        track("signup_complete");
-        setStep("verify");
-      }
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function toggleJurisdiction(code: JurisdictionCode) {
-    if (code === "IN") return; // locked
-    setSelectedJurisdictions((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) {
-        next.delete(code);
-      } else {
-        next.add(code);
-      }
-      return next;
-    });
   }
 
   if (step === "verify") {
     return (
-      <Card className="border-slate-700 bg-slate-800/50 backdrop-blur text-white">
-        <CardHeader>
-          <CardTitle className="text-white">Check your email</CardTitle>
-          <CardDescription className="text-slate-400">
-            We sent a confirmation link to <strong className="text-white">{email}</strong>.
-            Click it to activate your account, then sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="flex flex-col gap-3">
-          <Link href="/login" className="w-full">
-            <Button variant="outline" className="w-full border-slate-600 text-slate-300">
-              Go to sign in
-            </Button>
-          </Link>
-          <p className="text-sm text-slate-400 text-center">
-            {resendState === "sent" ? (
-              "Confirmation email sent — check your inbox and spam folder."
-            ) : resendState === "failed" ? (
-              "Could not resend right now. Please wait a minute and try again."
-            ) : (
-              <>
-                Didn&apos;t get it?{" "}
-                <button
-                  type="button"
-                  onClick={handleResendConfirmation}
-                  disabled={resendState === "sending"}
-                  className="underline text-green-400 hover:text-green-300"
-                >
-                  {resendState === "sending" ? "Sending…" : "Resend email"}
-                </button>
-              </>
-            )}
-          </p>
-        </CardFooter>
-      </Card>
-    );
-  }
-
-  if (step === "jurisdiction") {
-    return (
-      <Card className="border-slate-700 bg-slate-800/50 backdrop-blur text-white w-full max-w-lg">
-        <CardHeader>
-          <CardTitle className="text-white">Choose your jurisdictions</CardTitle>
-          <CardDescription className="text-slate-400">
-            India is always included. Select any additional live jurisdictions your agency operates in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-4 rounded-md bg-red-900/50 border border-red-700 px-4 py-3 text-sm text-red-300">
-              {error}
-            </div>
+      <div className={AUTH_CARD}>
+        <h1 className="text-xl font-semibold text-white">Check your email</h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          We sent a confirmation link to <span className="text-white">{email}</span>. Click it to
+          activate your account, then sign in.
+        </p>
+        <Link href="/login" className={`${AUTH_BTN_PRIMARY} mt-6`}>
+          Go to sign in
+        </Link>
+        <p className="mt-4 text-center text-sm text-zinc-500">
+          {resendState === "sent" ? (
+            "Sent — check your inbox and spam folder."
+          ) : resendState === "failed" ? (
+            "Could not resend right now. Wait a minute and try again."
+          ) : (
+            <>
+              Didn&apos;t get it?{" "}
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendState === "sending"}
+                className="text-white underline underline-offset-2 hover:text-zinc-300"
+              >
+                {resendState === "sending" ? "Sending…" : "Resend email"}
+              </button>
+            </>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {JURISDICTIONS.map((j) => {
-              const isSelected = selectedJurisdictions.has(j.code);
-              const isLocked = j.code === "IN";
-              const isComingSoon = j.status === "coming_soon";
-
-              return (
-                <button
-                  key={j.code}
-                  type="button"
-                  onClick={() => !isComingSoon && toggleJurisdiction(j.code)}
-                  disabled={isComingSoon || isLocked}
-                  className={cn(
-                    "relative text-left rounded-lg border p-3 transition-colors",
-                    isComingSoon
-                      ? "border-slate-700 bg-slate-800/30 opacity-50 cursor-not-allowed"
-                      : isSelected
-                      ? "border-green-500 bg-green-900/20 cursor-pointer"
-                      : "border-slate-600 bg-slate-800/50 hover:border-slate-500 cursor-pointer"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{j.flag}</span>
-                      <span className="font-medium text-white text-sm">{j.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {isLocked && (
-                        <span className="text-xs bg-green-800 text-green-300 rounded px-1.5 py-0.5">
-                          Included
-                        </span>
-                      )}
-                      {isComingSoon && (
-                        <span className="text-xs bg-slate-700 text-slate-400 rounded px-1.5 py-0.5">
-                          Coming Soon
-                        </span>
-                      )}
-                      {!isLocked && !isComingSoon && (
-                        <div className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center",
-                          isSelected ? "bg-green-500 border-green-500" : "border-slate-500"
-                        )}>
-                          {isSelected && <span className="text-black text-xs font-bold">✓</span>}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1 leading-snug">{j.description}</p>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button
-            variant="greenlit"
-            className="w-full"
-            onClick={handleJurisdictionContinue}
-            disabled={loading}
-          >
-            {loading ? "Setting up…" : "Continue →"}
-          </Button>
-        </CardFooter>
-      </Card>
+        </p>
+      </div>
     );
   }
 
   return (
-    <Card className="border-slate-700 bg-slate-800/50 backdrop-blur text-white">
-      <CardHeader>
-        <CardTitle className="text-white">Create your agency workspace</CardTitle>
-        <CardDescription className="text-slate-400">
-          You&apos;ll set up your agency name and details next
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSignup}>
-        <CardContent className="space-y-4">
+    <div className={AUTH_CARD}>
+      <h1 className="text-xl font-semibold text-white">Create your account</h1>
+      <p className="mt-1.5 text-sm text-zinc-500">Get started with Greenlit in a minute.</p>
+
+      <div className="mt-6 space-y-4">
+        <SocialAuth onError={setError} />
+        <OrDivider />
+
+        <form onSubmit={handleSignup} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-900/50 border border-red-700 px-4 py-3 text-sm text-red-300">
-              {error}
-            </div>
+            <div className="rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white">{error}</div>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-slate-300">Your name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Rahul Sharma"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-            />
+          <div className="space-y-1.5">
+            <label htmlFor="name" className={AUTH_LABEL}>Your name</label>
+            <input id="name" type="text" placeholder="Rahul Sharma" value={name}
+              onChange={(e) => setName(e.target.value)} required className={AUTH_FIELD} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-300">Work email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="rahul@youragency.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-            />
+          <div className="space-y-1.5">
+            <label htmlFor="email" className={AUTH_LABEL}>Email</label>
+            <input id="email" type="email" placeholder="you@example.com" value={email}
+              onChange={(e) => setEmail(e.target.value)} required className={AUTH_FIELD} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-slate-300">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Min. 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-            />
+          <div className="space-y-1.5">
+            <label htmlFor="password" className={AUTH_LABEL}>Password</label>
+            <input id="password" type="password" placeholder="Min. 8 characters" value={password}
+              onChange={(e) => setPassword(e.target.value)} required minLength={8} className={AUTH_FIELD} />
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" variant="greenlit" className="w-full" disabled={loading}>
-            {loading ? "Creating account…" : "Create account"}
-          </Button>
-          <p className="text-sm text-slate-400 text-center">
-            Already have an account?{" "}
-            <Link href="/login" className="text-green-400 hover:text-green-300">
-              Sign in
-            </Link>
-          </p>
-        </CardFooter>
-      </form>
-    </Card>
+
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input type="checkbox" checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-[#1D9E75]" />
+            <span className="text-xs leading-relaxed text-zinc-500">
+              Send me product updates and the occasional marketing email. We&apos;re against spam too — unsubscribe anytime.
+            </span>
+          </label>
+
+          <button type="submit" disabled={loading} className={AUTH_BTN_PRIMARY}>
+            {loading ? "Creating account…" : "Continue with email"}
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-5 text-center text-xs leading-relaxed text-zinc-600">
+        By continuing you agree to our{" "}
+        <Link href="/terms" className="text-zinc-400 underline underline-offset-2 hover:text-zinc-300">Terms</Link>{" "}
+        and{" "}
+        <Link href="/security" className="text-zinc-400 underline underline-offset-2 hover:text-zinc-300">Privacy Policy</Link>.
+      </p>
+
+      <p className="mt-5 text-center text-sm text-zinc-500">
+        Already have an account?{" "}
+        <Link href="/login" className="text-white hover:text-zinc-300">Sign in</Link>
+      </p>
+    </div>
   );
 }
