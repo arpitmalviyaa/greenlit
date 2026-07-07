@@ -42,6 +42,24 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
   }
 
-  // Session established — send to agency onboarding
+  // Route by profile: onboarded users go to their dashboard, new users (incl.
+  // first-time OAuth sign-ins) go to workspace setup.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, onboarding_done")
+      .eq("id", user.id)
+      .single();
+    if (profile?.onboarding_done) {
+      const destinations: Record<string, string> = {
+        agency_admin: "/agency",
+        creator: "/creator",
+        manager: "/manager",
+        brand: "/brand",
+      };
+      return NextResponse.redirect(`${origin}${destinations[profile.role] ?? "/"}`);
+    }
+  }
   return NextResponse.redirect(`${origin}/onboarding`);
 }
