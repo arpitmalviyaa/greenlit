@@ -5,11 +5,13 @@ import { checkRateLimit } from "@/lib/engine/infrastructure/rate-limit";
 import { extractTextFromBuffer } from "@/lib/utils/extract-text";
 import { createHash, randomUUID } from "crypto";
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BYTES = 15 * 1024 * 1024; // 15 MB — photos of contracts run larger
 const UPLOADS_PER_MINUTE = 12;
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Contract photos — transcribed via Claude vision in extractTextFromBuffer.
+  "image/jpeg", "image/png", "image/webp", "image/heic",
 ];
 
 export async function POST(request: Request) {
@@ -54,9 +56,9 @@ export async function POST(request: Request) {
   const title = clampTitle((formData.get("title") as string | null)?.trim() || file?.name || "Untitled Contract");
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (file.size > MAX_BYTES) return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 400 });
-  if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(pdf|docx)$/i)) {
-    return NextResponse.json({ error: "Only PDF and DOCX files are accepted" }, { status: 400 });
+  if (file.size > MAX_BYTES) return NextResponse.json({ error: "File exceeds 15 MB limit" }, { status: 400 });
+  if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(pdf|docx|jpe?g|png|webp|heic)$/i)) {
+    return NextResponse.json({ error: "Upload a PDF, DOCX, or a photo (JPG/PNG) of the contract" }, { status: 400 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

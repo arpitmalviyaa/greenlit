@@ -134,7 +134,7 @@ function UploadZone({ onFileSelected, disabled }: { onFileSelected: (file: File,
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.docx"
+          accept=".pdf,.docx,image/*"
           className="hidden"
           disabled={disabled}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
@@ -147,8 +147,8 @@ function UploadZone({ onFileSelected, disabled }: { onFileSelected: (file: File,
           </>
         ) : (
           <>
-            <p className="text-gray-700 font-medium">Drop a contract here</p>
-            <p className="text-gray-400 text-sm mt-1">PDF or DOCX · max 10 MB</p>
+            <p className="text-gray-700 font-medium">Drop a contract, or take a photo</p>
+            <p className="text-gray-400 text-sm mt-1">PDF, DOCX, or a photo · max 15 MB</p>
           </>
         )}
       </div>

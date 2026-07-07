@@ -19,6 +19,7 @@ const check = (name, ok, detail = "") => {
 const STAMP = Math.random().toString(36).slice(2, 8);
 const users = [];
 const orgs = [];
+let corpusDocId = null;
 
 async function makeTenant(n) {
   const email = `greenlit.qa.p3.${STAMP}.u${n}@example.com`;
@@ -85,7 +86,26 @@ try {
     const leaked = (data ?? []).some((r) => r.id === b.approval?.id);
     check("A's approval list has no B rows", !leaked);
   }
+  // Corpus is house knowledge — service-role only, invisible to every tenant.
+  // Skips cleanly until migration 035 is applied (activates automatically after).
+  {
+    const { data: doc, error: insErr } = await admin.from("corpus_documents")
+      .insert({ doc_kind: "clause_note", deal_type: "other", title: "QA corpus row", status: "ready" })
+      .select("id").single();
+    if (insErr && /does not exist|schema cache/i.test(insErr.message)) {
+      results.push(["SKIP", "Corpus RLS (migration 035 not applied)", insErr.message]);
+    } else if (insErr) {
+      check("Corpus fixture insert", false, insErr.message);
+    } else {
+      corpusDocId = doc.id;
+      const { data: cd } = await a.client.from("corpus_documents").select("id").eq("id", doc.id);
+      check("A denied corpus_documents", (cd ?? []).length === 0);
+      const { data: cc } = await a.client.from("corpus_chunks").select("id").limit(1);
+      check("A denied corpus_chunks", (cc ?? []).length === 0);
+    }
+  }
 } finally {
+  if (corpusDocId) await admin.from("corpus_documents").delete().eq("id", corpusDocId).catch(() => {});
   // Cleanup: delete QA rows, orgs, users
   for (const org of orgs) {
     await admin.from("approval_requests").delete().eq("organisation_id", org.id);

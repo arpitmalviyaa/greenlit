@@ -11,6 +11,7 @@ import {
   type ContractAnalysis,
 } from "@/lib/anthropic/prompts/contract-analyse";
 import { getRelevantCorpus, formatCorpusForPrompt } from "@/lib/corpus/index";
+import { houseKnowledge } from "@/lib/corpus/retrieve";
 
 function safeParse<T>(text: string): T | null {
   try {
@@ -74,7 +75,15 @@ export async function POST(request: Request) {
     effectiveJurisdiction,
     5
   );
-  const corpus_context = formatCorpusForPrompt(corpusEntries);
+  const jurisdictionContext = formatCorpusForPrompt(corpusEntries);
+
+  // House knowledge (our own precedent/dispute corpus) — best-effort, appended.
+  const houseContext = await houseKnowledge({
+    query: `${contract.title ?? ""} ${contract.raw_text.slice(0, 1500)}`,
+    feature: "counsel.analyse",
+    contractId: contract_id,
+  });
+  const corpus_context = [jurisdictionContext, houseContext].filter(Boolean).join("\n\n");
 
   const anthropic = getAnthropicClient();
 
