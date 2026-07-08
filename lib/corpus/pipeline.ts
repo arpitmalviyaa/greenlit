@@ -68,6 +68,17 @@ async function classifyBatch(chunks: string[], offset: number): Promise<Classifi
   }
 }
 
+// Classify chunks in batches → index→classification map. Pure (no DB); exported
+// for the ingest/reprocess paths and for direct verification harnesses.
+export async function classifyChunks(chunks: string[]): Promise<Map<number, Classification>> {
+  const byIndex = new Map<number, Classification>();
+  for (let off = 0; off < chunks.length; off += CLASSIFY_BATCH) {
+    const results = await classifyBatch(chunks.slice(off, off + CLASSIFY_BATCH), off);
+    for (const r of results) byIndex.set(r.index, r);
+  }
+  return byIndex;
+}
+
 // Classify a document's chunks and insert them; returns the rolled-up status.
 // Shared by first ingest and reprocess.
 async function classifyAndSave(
@@ -75,11 +86,7 @@ async function classifyAndSave(
   documentId: string,
   chunks: string[]
 ): Promise<{ status: "ready" | "needs_review"; count: number }> {
-  const byIndex = new Map<number, Classification>();
-  for (let off = 0; off < chunks.length; off += CLASSIFY_BATCH) {
-    const results = await classifyBatch(chunks.slice(off, off + CLASSIFY_BATCH), off);
-    for (const r of results) byIndex.set(r.index, r);
-  }
+  const byIndex = await classifyChunks(chunks);
   let anyReview = false;
   const rows = chunks.map((content, i) => {
     const c = byIndex.get(i);
