@@ -3,21 +3,25 @@ import { randomUUID } from "crypto";
 import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ingestDocument } from "@/lib/corpus/pipeline";
+import { isVertical } from "@/lib/corpus/vertical";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const DOC_KINDS = ["contract", "dispute", "judgment", "negotiation", "clause_note", "founder_annotation"];
 const DEAL_TYPES = ["paid_promotion", "barter", "ugc_license", "ambassadorship", "representation", "platform", "other"];
 
-// List documents (library view).
-export async function GET() {
+// List documents (library view). Optional ?vertical= filter.
+export async function GET(request: Request) {
   if (!await requireAdmin()) return NOT_FOUND;
   const service = await createServiceClient();
-  const { data, error } = await service
+  let q = service
     .from("corpus_documents")
-    .select("id, doc_kind, deal_type, title, status, created_at, corpus_chunks(count)")
+    .select("id, doc_kind, deal_type, vertical, sanitized, title, status, created_at, corpus_chunks(count)")
     .order("created_at", { ascending: false })
     .limit(500);
+  const vertical = new URL(request.url).searchParams.get("vertical");
+  if (isVertical(vertical)) q = q.eq("vertical", vertical);
+  const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const docs = (data ?? []).map((d) => ({
     ...d,
@@ -37,7 +41,7 @@ export async function POST(request: Request) {
   // ── Quick-add note (json) ──────────────────────────────────────────────────
   if (contentType.includes("application/json")) {
     const body = await request.json() as {
-      noteText?: string; deal_type?: string; title?: string;
+      noteText?: string; deal_type?: string; vertical?: string; title?: string;
     };
     const noteText = body.noteText?.trim();
     if (!noteText) return NextResponse.json({ error: "noteText required" }, { status: 400 });
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
       uploaded_by: user.id,
       doc_kind: "founder_annotation",
       deal_type: DEAL_TYPES.includes(body.deal_type ?? "") ? body.deal_type! : "other",
+      vertical: isVertical(body.vertical) ? body.vertical : "creator",
       title: body.title?.trim() || null,
       founder_note: null,
       noteText,
@@ -63,8 +68,10 @@ export async function POST(request: Request) {
 
   const doc_kind = String(form.get("doc_kind") ?? "contract");
   const deal_type = String(form.get("deal_type") ?? "other");
+  const verticalRaw = String(form.get("vertical") ?? "creator");
   if (!DOC_KINDS.includes(doc_kind)) return NextResponse.json({ error: "invalid doc_kind" }, { status: 400 });
   if (!DEAL_TYPES.includes(deal_type)) return NextResponse.json({ error: "invalid deal_type" }, { status: 400 });
+  if (!isVertical(verticalRaw)) return NextResponse.json({ error: "invalid vertical" }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
@@ -74,6 +81,7 @@ export async function POST(request: Request) {
     uploaded_by: user.id,
     doc_kind,
     deal_type,
+    vertical: verticalRaw,
     title: (form.get("title") as string | null)?.trim() || file.name,
     source_note: (form.get("source_note") as string | null)?.trim() || null,
     founder_note: (form.get("founder_note") as string | null)?.trim() || null,

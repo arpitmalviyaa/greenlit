@@ -6,6 +6,7 @@
 // or the schema (the embedding column already exists).
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { type Vertical, verticalScope } from "./vertical";
 
 export type CorpusStance =
   | "market_standard"
@@ -28,6 +29,9 @@ export interface CorpusHit {
 export interface CorpusFilters {
   deal_type?: string;
   clause_type?: string;
+  // Which vertical is analysing. Omitted → 'creator' (safe default: an
+  // un-threaded caller can never leak startup/litigation chunks).
+  vertical?: Vertical;
 }
 
 // Build a websearch tsquery from free-text query + keyword list. websearch_to_tsquery
@@ -64,6 +68,8 @@ export async function search(
       )
       .eq("status", "ready")
       .eq("corpus_documents.status", "ready")
+      .eq("corpus_documents.sanitized", true)   // D: unsanitized docs never retrieved
+      .in("vertical", verticalScope(filters.vertical ?? "creator"))
       .textSearch("tsv", websearch, { type: "websearch" });
 
     if (filters.deal_type) q = q.eq("corpus_documents.deal_type", filters.deal_type);

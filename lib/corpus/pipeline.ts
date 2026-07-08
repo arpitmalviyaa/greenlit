@@ -84,7 +84,8 @@ export async function classifyChunks(chunks: string[]): Promise<Map<number, Clas
 async function classifyAndSave(
   supabase: Awaited<ReturnType<typeof createServiceClient>>,
   documentId: string,
-  chunks: string[]
+  chunks: string[],
+  vertical: string
 ): Promise<{ status: "ready" | "needs_review"; count: number }> {
   const byIndex = await classifyChunks(chunks);
   let anyReview = false;
@@ -93,7 +94,7 @@ async function classifyAndSave(
     const low = !c || c.confidence < CONFIDENCE_FLOOR;
     if (low) anyReview = true;
     return {
-      document_id: documentId, chunk_index: i, content,
+      document_id: documentId, chunk_index: i, content, vertical,
       clause_type: c?.clause_type ?? null, risk_note: c?.risk_note ?? null,
       stance: c?.stance ?? "market_standard", status: low ? "needs_review" : "ready",
     };
@@ -106,6 +107,7 @@ export interface IngestInput {
   uploaded_by: string | null;
   doc_kind: string;
   deal_type: string;
+  vertical?: string;   // defaults to 'creator' — safe: no caller can leak another vertical's corpus
   title?: string | null;
   source_note?: string | null;
   founder_note?: string | null;
@@ -124,6 +126,7 @@ export interface IngestResult {
 
 export async function ingestDocument(input: IngestInput): Promise<IngestResult> {
   const supabase = await createServiceClient();
+  const vertical = input.vertical ?? "creator";
 
   // 1. Insert the document row (processing) so status is visible immediately.
   const { data: doc, error: insErr } = await supabase
@@ -132,6 +135,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
       uploaded_by: input.uploaded_by,
       doc_kind: input.doc_kind,
       deal_type: input.deal_type,
+      vertical,
       title: input.title ?? null,
       source_note: input.source_note ?? null,
       founder_note: input.founder_note ?? null,
@@ -153,7 +157,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
       await supabase.from("corpus_documents")
         .update({ extracted_text: content, status: "ready" }).eq("id", documentId);
       await supabase.from("corpus_chunks").insert({
-        document_id: documentId, chunk_index: 0, content,
+        document_id: documentId, chunk_index: 0, content, vertical,
         clause_type: null, stance: "founder_approved", status: "ready",
       });
       return { id: documentId, status: "ready", chunk_count: 1 };
@@ -176,7 +180,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
     if (!chunks.length) throw new Error("chunking produced no content");
 
     // 4+5. Classify + save chunks.
-    const { status, count } = await classifyAndSave(supabase, documentId, chunks);
+    const { status, count } = await classifyAndSave(supabase, documentId, chunks, vertical);
     await supabase.from("corpus_documents")
       .update({ extracted_text: text.slice(0, 200_000), status }).eq("id", documentId);
 
@@ -192,7 +196,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
 export async function reprocessDocument(documentId: string): Promise<IngestResult> {
   const supabase = await createServiceClient();
   const { data: doc } = await supabase.from("corpus_documents")
-    .select("uploaded_by, doc_kind, deal_type, title, source_note, founder_note, file_path, extracted_text")
+    .select("uploaded_by, doc_kind, deal_type, vertical, title, source_note, founder_note, file_path, extracted_text")
     .eq("id", documentId).single();
   if (!doc) return { id: documentId, status: "failed", chunk_count: 0, error: "not found" };
 
@@ -219,7 +223,9 @@ export async function reprocessDocument(documentId: string): Promise<IngestResul
     await supabase.from("corpus_documents").update({ status: "failed" }).eq("id", documentId);
     return { id: documentId, status: "failed", chunk_count: 0, error: "chunking produced no content" };
   }
-  const { status, count } = await classifyAndSave(supabase, documentId, chunks);
+  const { status, count } = await classifyAndSave(
+    supabase, documentId, chunks, (doc.vertical as string | null) ?? "creator"
+  );
   await supabase.from("corpus_documents").update({ status }).eq("id", documentId);
   return { id: documentId, status, chunk_count: count };
 }

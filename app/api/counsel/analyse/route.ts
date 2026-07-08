@@ -12,6 +12,7 @@ import {
 } from "@/lib/anthropic/prompts/contract-analyse";
 import { getRelevantCorpus, formatCorpusForPrompt } from "@/lib/corpus/index";
 import { houseKnowledge } from "@/lib/corpus/retrieve";
+import { isVertical } from "@/lib/corpus/vertical";
 
 function safeParse<T>(text: string): T | null {
   try {
@@ -45,8 +46,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No organisation found" }, { status: 403 });
   }
 
-  const body = await request.json() as { contract_id?: string; jurisdiction?: string };
+  const body = await request.json() as { contract_id?: string; jurisdiction?: string; vertical?: string };
   const { contract_id, jurisdiction = "IN" } = body;
+  const vertical = isVertical(body.vertical) ? body.vertical : "creator";
   if (!contract_id) return NextResponse.json({ error: "contract_id required" }, { status: 400 });
 
   // Fetch contract — RLS ensures org scoping
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
   // House knowledge (our own precedent/dispute corpus) — best-effort, appended.
   const houseContext = await houseKnowledge({
     query: `${contract.title ?? ""} ${contract.raw_text.slice(0, 1500)}`,
+    filters: { vertical },
     feature: "counsel.analyse",
     contractId: contract_id,
   });

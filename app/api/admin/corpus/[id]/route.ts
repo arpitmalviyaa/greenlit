@@ -11,13 +11,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const service = await createServiceClient();
   const { data: doc } = await service.from("corpus_documents")
-    .select("id, doc_kind, deal_type, title, source_note, founder_note, file_path, status, created_at")
+    .select("id, doc_kind, deal_type, vertical, sanitized, title, source_note, founder_note, file_path, status, created_at")
     .eq("id", id).single();
   if (!doc) return NOT_FOUND;
   const { data: chunks } = await service.from("corpus_chunks")
     .select("id, chunk_index, content, clause_type, risk_note, stance, status")
     .eq("document_id", id).order("chunk_index", { ascending: true });
   return NextResponse.json({ document: doc, chunks: chunks ?? [] });
+}
+
+// Sanitization gate: mark a document sanitized (party names / identifying details
+// confirmed removed). Until set, the doc never enters retrieval.
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!await requireAdmin()) return NOT_FOUND;
+  const { id } = await params;
+  const body = await request.json() as { sanitized?: boolean };
+  const service = await createServiceClient();
+  const { error } = await service.from("corpus_documents")
+    .update({ sanitized: body.sanitized === true }).eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, sanitized: body.sanitized === true });
 }
 
 // Reprocess (re-extract + re-classify).
