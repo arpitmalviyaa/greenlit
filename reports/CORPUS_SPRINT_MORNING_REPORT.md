@@ -1,6 +1,8 @@
 # Q1 Corpus Sprint — Morning Report (Day 0)
 
-Branch: `q1-corpus-sprint` (pushed). Base: `website-v2-editorial` (the live production code — see decision below). Preview: building on Vercel, URL publishes as a GitHub check on the branch / in the Vercel `greenlit` project.
+Branch: `q1-corpus-sprint` (pushed). Base: `website-v2-editorial` (the live production code — see decision below). PR: #10.
+
+**Preview URL — blocked (needs you):** this Vercel project only auto-builds a curated set of branches; pushing `q1-corpus-sprint` and opening PR #10 did NOT spawn a preview, and there's no `VERCEL_TOKEN` on the machine to force one. The local production build passes clean, so it will build fine once triggered. Unblock (any one): in Vercel → greenlit → Settings → Git, enable preview deploys for this branch; **or** run `npx vercel deploy` from the repo (interactive login); **or** merge to a branch Vercel already builds.
 
 ## What shipped (code complete, build + type-check + lint + offline tests all green)
 1. **Corpus data layer** — `035_corpus.sql`: `corpus_documents`, `corpus_chunks` (tsv generated col + GIN, nullable `embedding vector(1536)` unpopulated), `analysis_corpus_refs`, enums, service-only RLS (deny-all for client roles), private `corpus` storage bucket.
