@@ -2,7 +2,24 @@
 
 Branch: `q1-corpus-sprint` (pushed). Base: `website-v2-editorial` (the live production code — see decision below). PR: #10.
 
-**Preview URL — blocked (needs you):** this Vercel project only auto-builds a curated set of branches; pushing `q1-corpus-sprint` and opening PR #10 did NOT spawn a preview, and there's no `VERCEL_TOKEN` on the machine to force one. The local production build passes clean, so it will build fine once triggered. Unblock (any one): in Vercel → greenlit → Settings → Git, enable preview deploys for this branch; **or** run `npx vercel deploy` from the repo (interactive login); **or** merge to a branch Vercel already builds.
+## Verification round (Day 0 +1) — evidence
+
+**Preview URL:** https://greenlit-hhgnxkc6l-anal-s-projects.vercel.app — built via `vercel deploy` (CLI authed as arpitclaw-5770). `"target": null` = **preview, never production** (guardrail held). ⚠️ Behind **Vercel Authentication (SSO)**: root 302s to `vercel.com/login`. To open on your phone, be logged into the `anal-s-projects` Vercel team, or disable Deployment Protection for this preview (can't be set non-interactively).
+
+**Guardrail (Git-connect + prod-branch):** NOT done by me. The Vercel MCP can't read or set the production-branch/git-link setting, so I could not *guarantee* connecting Git wouldn't fire a prod deploy — so I didn't. Preview came from `vercel deploy` (safe). **Your click:** Vercel → greenlit → Settings → Git → connect `arpitmalviyaa/greenlit`, set Production Branch = `website-v2-editorial`, confirm "only production branch" auto-deploys prod.
+
+**Staging DB:** new **free** Supabase project `greenlit-corpus-staging` (`xjlhtwsbfpsxwsnkkkzz`, same org, ap-southeast-2). 035 applied there via MCP. Prod (`ovjqzgzqcyowitjfwptz`) UNTOUCHED. Delete when done (say the word).
+
+**(a) Pipeline end-to-end** on a real contract (Writer-Director Agreement — SMPAPL x Prateek Singh, DOCX): extract → **53 clause-aware chunks** → AI-classified (clause_type + stance + confidence + risk_note), 50 `ready` / 3 `needs_review` (low-confidence signature lines, correctly flagged). Real classifications: perpetual worldwide AI/NFT usage grant → `usage_rights/brand_aggressive`; work-made-for-hire → `ip_assignment/brand_aggressive`; uncapped IP indemnity, on-set-photo confidentiality, etc. 6 representative chunks persisted to staging.
+
+**(b) RLS — corpus unreadable from client role:** with 1+ real rows present, `SET ROLE anon` → `{visible_documents:0, visible_chunks:0, visible_refs:0}`; `SET ROLE authenticated` → 0; service (postgres) → sees rows. Deny-all policies verified against the real Postgres roles.
+
+**Retrieval fired + refs logged:** FTS `websearch` query (`ip OR assignment OR rights OR perpetual OR indemnity OR confidential`) over staging returned 4 ranked real chunks — `ip_assignment` top (rank 0.0456), then `confidentiality`, `usage_rights`, `indemnity` — and inserted **1 `analysis_corpus_refs` row** (feature=`counsel.redflags`, 4 chunk_ids). **Empty no-op:** unmatched clause filter → 0 hits; non-existent query term → 0 hits (⇒ `search()` returns `[]` ⇒ prompt unchanged).
+
+**Photo → verdict:** vision-OCR tier proven on a real rendered document image via the shipped `transcribeImage` — transcribed 1029 chars verbatim, page-labeled, accurate. The `→ verdict` half is the unchanged, test-green analyse pipeline. Full authenticated photo-upload→verdict on the preview needs your login (writes to prod DB) — that's the piece you verify on your phone.
+
+---
+_(Original Day-0 notes below.)_
 
 ## What shipped (code complete, build + type-check + lint + offline tests all green)
 1. **Corpus data layer** — `035_corpus.sql`: `corpus_documents`, `corpus_chunks` (tsv generated col + GIN, nullable `embedding vector(1536)` unpopulated), `analysis_corpus_refs`, enums, service-only RLS (deny-all for client roles), private `corpus` storage bucket.
