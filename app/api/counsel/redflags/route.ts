@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { MODELS } from "@/lib/anthropic/utils";
 import { AIOutputError, callStructured } from "@/lib/anthropic/structured";
 import { RED_FLAGS_SYSTEM, RedFlagsSchema, redFlagsUser } from "@/lib/anthropic/prompts/red-flags";
+import { houseKnowledge } from "@/lib/corpus/retrieve";
+import { isVertical } from "@/lib/corpus/vertical";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -19,8 +21,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No organisation found" }, { status: 403 });
   }
 
-  const body = await request.json() as { contract_id?: string };
+  const body = await request.json() as { contract_id?: string; vertical?: string };
   const { contract_id } = body;
+  const vertical = isVertical(body.vertical) ? body.vertical : "creator";
   if (!contract_id) return NextResponse.json({ error: "contract_id required" }, { status: 400 });
 
   const { data: contract } = await supabase
@@ -35,6 +38,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Contract has not been analysed yet" }, { status: 422 });
   }
 
+  const clauseJson = JSON.stringify(contract.analysis_json);
+  // House knowledge — best-effort; empty corpus leaves the prompt unchanged.
+  const houseContext = await houseKnowledge({
+    query: clauseJson,
+    filters: { vertical },
+    feature: "counsel.redflags",
+    contractId: contract_id,
+  });
+
   try {
     const result = await callStructured({
       feature: "counsel.redflags",
@@ -42,7 +54,7 @@ export async function POST(request: Request) {
       model: MODELS.HAIKU,
       maxTokens: 2000,
       system: RED_FLAGS_SYSTEM,
-      user: redFlagsUser(JSON.stringify(contract.analysis_json)),
+      user: redFlagsUser(clauseJson) + (houseContext ? `\n\n${houseContext}` : ""),
       schema: RedFlagsSchema,
       toolName: "report_red_flags",
     });

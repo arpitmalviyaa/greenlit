@@ -1,4 +1,6 @@
-// Server-only. Extracts plain text from PDF and DOCX buffers.
+// Server-only. Extracts plain text from PDF, DOCX, and image buffers. Digital
+// PDFs/DOCX use native parsers; scanned PDFs and photos fall back to Claude
+// vision transcription (the one-click Verify OCR tier).
 
 export async function extractTextFromBuffer(
   buffer: Buffer,
@@ -15,6 +17,11 @@ export async function extractTextFromBuffer(
     ) {
       return extractDocx(buffer);
     }
+    // Photo of a contract (or HEIC, which returns a friendly "use JPG" error).
+    const { isVisionImage, transcribeImage } = await import("./vision-extract.ts");
+    if (isVisionImage(mimeType, fileName) || /\.heic$/i.test(fileName) || mimeType === "image/heic") {
+      return transcribeImage(buffer, mimeType, fileName);
+    }
     return { text: "", error: `Unsupported file type: ${mimeType}` };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown extraction error";
@@ -27,12 +34,14 @@ async function extractPdf(buffer: Buffer): Promise<{ text: string; html?: string
     // Dynamic import avoids Next.js edge runtime issues
     const pdfModule = await import("pdf-parse");
     // pdf-parse exports differ between CJS and ESM builds
-    type PdfFn = (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string }>;
+    type PdfFn = (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string; numpages?: number }>;
     const pdfParse = ((pdfModule as unknown as { default: PdfFn }).default ?? pdfModule) as PdfFn;
     const result = await pdfParse(buffer, { max: 0 });
     const text = result.text?.trim() ?? "";
-    if (!text) return { text: "", error: "PDF contained no extractable text (may be scanned image)" };
-    return { text };
+    if (text) return { text };
+    // No embedded text → scanned PDF. Fall back to Claude vision (page-capped).
+    const { transcribeScannedPdf } = await import("./vision-extract.ts");
+    return transcribeScannedPdf(buffer, result.numpages);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "PDF parsing failed";
     return { text: "", error: msg };
