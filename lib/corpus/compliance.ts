@@ -9,6 +9,7 @@
 //   nothing relevant is retrieved we return "no_authority_matched" instead of
 //   letting a model invent law.
 
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { callStructured, AIOutputError } from "@/lib/anthropic/structured";
@@ -26,6 +27,7 @@ export interface ComplianceCitation {
 }
 
 export interface ComplianceFinding {
+  id: string; // pre-generated; anchors finding_feedback rows
   issue: string;
   severity: "low" | "medium" | "high" | "critical";
   statute_citation: string;
@@ -142,6 +144,7 @@ export async function complianceCheck(opts: {
         .map((i) => scoped[i]);
       if (!cited.length) continue; // un-grounded → dropped
       findings.push({
+        id: randomUUID(),
         issue: f.issue,
         severity: f.severity,
         statute_citation: f.statute_citation,
@@ -180,6 +183,7 @@ async function persistFindings(
   try {
     const supabase = await createServiceClient();
     await supabase.from("compliance_findings").insert(findings.map((f) => ({
+      id: f.id,
       contract_id: opts.contractId ?? null,
       feature: opts.feature,
       vertical: opts.vertical,

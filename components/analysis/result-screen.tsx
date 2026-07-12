@@ -13,6 +13,8 @@ import {
   Copy,
   MessageCircleQuestion,
   PenLine,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react";
 
 export interface ResultIssue {
@@ -29,6 +31,7 @@ export interface ResultIssue {
 // Client-safe mirror of lib/corpus/compliance.ts ComplianceFinding (that module
 // is server-only; this is the wire shape the counsel APIs return).
 export interface StatutoryFinding {
+  id: string;
   issue: string;
   severity: "low" | "medium" | "high" | "critical";
   statute_citation: string;
@@ -202,6 +205,78 @@ function ReviewRow({ issue }: { issue: ResultIssue }) {
   );
 }
 
+function StatutoryCard({ finding: f }: { finding: StatutoryFinding }) {
+  const [voted, setVoted] = useState<"accepted" | "rejected" | null>(null);
+
+  async function vote(verdict: "accepted" | "rejected") {
+    if (voted) return;
+    setVoted(verdict); // optimistic — feedback is a signal, not a transaction
+    try {
+      await fetch("/api/compliance/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finding_id: f.id, verdict }),
+      });
+    } catch { /* signal lost, card state stays — not worth surfacing */ }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white p-4 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-gray-900">{f.issue}</p>
+        <span className={cn("shrink-0 rounded px-2 py-0.5 text-xs font-medium", SEVERITY_TAG[f.severity])}>
+          {SEVERITY_LABEL[f.severity]}
+        </span>
+      </div>
+      <p className="text-sm text-gray-600">{f.explanation}</p>
+      {f.suggested_fix && (
+        <p className="text-sm text-gray-700">
+          <span className="font-medium">Suggested fix: </span>{f.suggested_fix}
+        </p>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-gray-500">
+          {f.citations.map((c, j) => {
+            const label = [c.citation ?? f.statute_citation, c.section_ref].filter(Boolean).join(", ");
+            return (
+              <span key={j}>
+                {j > 0 && " · "}
+                {c.source_url ? (
+                  <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-700">
+                    {label}
+                  </a>
+                ) : (
+                  label
+                )}
+              </span>
+            );
+          })}
+        </p>
+        <span className="flex shrink-0 items-center gap-1">
+          <button
+            aria-label="Mark finding correct"
+            disabled={!!voted}
+            onClick={() => void vote("accepted")}
+            className={cn("rounded p-1 hover:bg-gray-100 disabled:hover:bg-transparent",
+              voted === "accepted" ? "text-green-600" : "text-gray-400")}
+          >
+            <ThumbsUp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            aria-label="Mark finding wrong"
+            disabled={!!voted}
+            onClick={() => void vote("rejected")}
+            className={cn("rounded p-1 hover:bg-gray-100 disabled:hover:bg-transparent",
+              voted === "rejected" ? "text-red-500" : "text-gray-400")}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function ResultScreen({ data }: { data: ResultData }) {
   const [showStandard, setShowStandard] = useState(false);
   const top = data.top.slice(0, 3);
@@ -244,38 +319,8 @@ export function ResultScreen({ data }: { data: ResultData }) {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Statutory check
           </h2>
-          {data.statutory.map((f, i) => (
-            <div key={i} className="border border-gray-200 rounded-lg bg-white p-4 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-medium text-gray-900">{f.issue}</p>
-                <span className={cn("shrink-0 rounded px-2 py-0.5 text-xs font-medium", SEVERITY_TAG[f.severity])}>
-                  {SEVERITY_LABEL[f.severity]}
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">{f.explanation}</p>
-              {f.suggested_fix && (
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">Suggested fix: </span>{f.suggested_fix}
-                </p>
-              )}
-              <p className="text-xs text-gray-500">
-                {f.citations.map((c, j) => {
-                  const label = [c.citation ?? f.statute_citation, c.section_ref].filter(Boolean).join(", ");
-                  return (
-                    <span key={j}>
-                      {j > 0 && " · "}
-                      {c.source_url ? (
-                        <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-700">
-                          {label}
-                        </a>
-                      ) : (
-                        label
-                      )}
-                    </span>
-                  );
-                })}
-              </p>
-            </div>
+          {data.statutory.map((f) => (
+            <StatutoryCard key={f.id} finding={f} />
           ))}
           <p className="text-xs text-gray-400">
             Checked against the statutory knowledge base — every finding cites its source provision.

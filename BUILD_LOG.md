@@ -36,3 +36,13 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 - UI: `ResultScreen` gains a "Statutory check" section (severity tag, explanation, suggested fix, **clickable citations** via doc `source_url`); contracts page threads findings through. ResultScreen is shared by contracts + content checks, so both surfaces get it.
 - Flag: `FLAGS.complianceCheck = false` (default OFF — flag short-circuits before any retrieval/LLM call).
 - `tsc --noEmit` clean.
+
+## Stage 3 — Learning / feedback loop (retrieval-side, NOT model training) ✅
+- Migration `20260712030000_finding_feedback.sql` (**applied to staging**): `finding_feedback` (finding_id FK → compliance_findings, verdict accepted|rejected, note, user_id) + `chunk_feedback_scores` view (security_invoker; per-chunk mean score in [-1,1] over every finding that cited it). RLS on, service-role only.
+- Findings now carry a pre-generated `id` (compliance.ts, `randomUUID`) so feedback anchors without a read-back.
+- `POST /api/compliance/feedback` — authed; inserts verdict; FK miss → 404.
+- UI: thumbs up/down on every Statutory-check card (optimistic, one vote per render).
+- Retrieval ranking: `search()` fetches `chunk_feedback_scores` for its hits (one extra query, best-effort) and nudges effective weight by `score × 0.1` — feedback can re-order within a tier but never lets house knowledge outrank an act.
+- Golden set: `tests/golden-set.json` (hand-curated; starter file with a skipped example) **plus** auto-derived pairs from accepted feedback on query-backed findings.
+- `scripts/corpus-eval.ts` — runs the golden set through real `search()`, reports precision@k / recall@k per query + aggregate, optional `--min-recall` gate for CI.
+- Fine-tuning path: explicitly NOT built. It is a separate decision needing a labeled dataset + cost sign-off; the feedback data collected here (finding_feedback + golden set) would be its training corpus if ever green-lit.

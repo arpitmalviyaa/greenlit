@@ -111,9 +111,24 @@ export async function search(
       authority_weight: Number(r.corpus_documents.authority_weight ?? 0.5),
     }));
 
-    // Rank: authority weight first (acts outrank house knowledge), then stance
-    // (founder-approved and dispute-source carry the most signal) — the top
-    // entries survive the token-cap truncation in formatForPrompt.
+    // Feedback nudge: reviewer accept/reject on findings that cited a chunk
+    // shifts its rank by ±0.1 max (never dominates authority weight). One extra
+    // query, best-effort — a miss changes nothing.
+    const feedback = new Map<string, number>();
+    try {
+      const { data: fb } = await supabase
+        .from("chunk_feedback_scores")
+        .select("chunk_id, score")
+        .in("chunk_id", hits.map((h) => h.id));
+      for (const r of (fb ?? []) as { chunk_id: string; score: number }[]) {
+        feedback.set(r.chunk_id, Number(r.score) * 0.1);
+      }
+    } catch { /* view empty/missing → no nudge */ }
+
+    // Rank: feedback-adjusted authority weight first (acts outrank house
+    // knowledge), then stance (founder-approved and dispute-source carry the
+    // most signal) — the top entries survive the token-cap truncation in
+    // formatForPrompt.
     const weight: Record<CorpusStance, number> = {
       founder_approved: 0,
       dispute_source: 1,
@@ -121,9 +136,8 @@ export async function search(
       brand_aggressive: 2,
       market_standard: 3,
     };
-    hits.sort((a, b) =>
-      (b.authority_weight - a.authority_weight) || (weight[a.stance] - weight[b.stance])
-    );
+    const eff = (h: CorpusHit) => h.authority_weight + (feedback.get(h.id) ?? 0);
+    hits.sort((a, b) => (eff(b) - eff(a)) || (weight[a.stance] - weight[b.stance]));
     return hits;
   } catch {
     // Empty corpus / query failure = pipeline behaves exactly as before. No throw.

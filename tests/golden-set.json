@@ -1,0 +1,7 @@
+[
+  {
+    "skip": true,
+    "query": "EXAMPLE — brand may use creator content perpetually across all media",
+    "expect_citations": ["Consumer Protection Act, 2019"]
+  }
+]
