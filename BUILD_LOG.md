@@ -46,3 +46,13 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 - Golden set: `tests/golden-set.json` (hand-curated; starter file with a skipped example) **plus** auto-derived pairs from accepted feedback on query-backed findings.
 - `scripts/corpus-eval.ts` — runs the golden set through real `search()`, reports precision@k / recall@k per query + aggregate, optional `--min-recall` gate for CI.
 - Fine-tuning path: explicitly NOT built. It is a separate decision needing a labeled dataset + cost sign-off; the feedback data collected here (finding_feedback + golden set) would be its training corpus if ever green-lit.
+
+## Stage 4 — Embeddings + true hybrid retrieval ✅
+- Ingest-side embedding landed with Stage 1 (`lib/corpus/embed.ts`, wired into both chunk-save paths).
+- Migration `20260712040000_vector_search.sql` (**applied to staging**):
+  - `hnsw` index on `corpus_chunks.embedding` (cosine; opclass schema-qualified `extensions.vector_cosine_ops` since pgvector moved out of public).
+  - `match_corpus_chunks(query_embedding, match_count, verticals, kinds)` RPC — same visibility gates as tsv (ready + sanitized + not-superseded + vertical scope), `set search_path=''` with `operator(extensions.<=>)`; EXECUTE revoked from public/anon/authenticated (service-role only).
+- `lib/corpus/retrieve.ts` — `search()` is now hybrid: tsv leg + vector leg in parallel, merged by **RRF** (k=60) to pick the candidate pool, then the existing authority-weight + feedback + stance ranking applies unchanged. **No `OPENAI_API_KEY` (or no embedded rows) → vector leg returns [] and behaviour is exactly tsv-only** — no hard fail, logged once. Callers untouched (the header-comment promise held).
+- `scripts/corpus-backfill-embeddings.ts` — idempotent backfill for null-embedding rows; batches; aborts cleanly and is safe to re-run.
+- Env: `OPENAI_API_KEY` (text-embedding-3-small, 1536d = the existing column). **Not present in `.env.local` — manual step.**
+- `tsc` clean; chunker tests 9/9.

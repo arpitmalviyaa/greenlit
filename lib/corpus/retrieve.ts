@@ -7,6 +7,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { type Vertical, verticalScope } from "./vertical";
+import { embedQuery, embeddingsEnabled } from "./embed";
 
 export type CorpusStance =
   | "market_standard"
@@ -54,62 +55,141 @@ function toWebsearch(query: string): string {
   return Array.from(new Set(terms)).join(" OR ");
 }
 
+type ServiceClient = Awaited<ReturnType<typeof createServiceClient>>;
+
+// Lexical leg: Postgres full-text search over tsv.
+async function tsvSearch(
+  supabase: ServiceClient,
+  query: string,
+  filters: CorpusFilters,
+  limit: number
+): Promise<CorpusHit[]> {
+  const websearch = toWebsearch(query);
+  if (!websearch) return [];
+
+  // !inner join so a deal_type filter on the parent document actually restricts
+  // rows (and so we can read deal_type/doc_kind back for the prompt block).
+  let q = supabase
+    .from("corpus_chunks")
+    .select(
+      "id, document_id, content, clause_type, risk_note, stance, citation, section_ref, corpus_documents!inner(deal_type, doc_kind, status, source_url, authority_weight, superseded_by)"
+    )
+    .eq("status", "ready")
+    .eq("corpus_documents.status", "ready")
+    .eq("corpus_documents.sanitized", true)   // D: unsanitized docs never retrieved
+    .is("corpus_documents.superseded_by", null) // superseded authorities never retrieved
+    .in("vertical", verticalScope(filters.vertical ?? "creator"))
+    .textSearch("tsv", websearch, { type: "websearch" });
+
+  if (filters.deal_type) q = q.eq("corpus_documents.deal_type", filters.deal_type);
+  if (filters.clause_type) q = q.eq("clause_type", filters.clause_type);
+  if (filters.kinds?.length) q = q.in("corpus_documents.doc_kind", [...filters.kinds]);
+
+  const { data, error } = await q.limit(limit);
+  if (error || !data) return [];
+
+  return (data as unknown as Array<{
+    id: string;
+    document_id: string;
+    content: string;
+    clause_type: string | null;
+    risk_note: string | null;
+    stance: CorpusStance;
+    citation: string | null;
+    section_ref: string | null;
+    corpus_documents: { deal_type: string; doc_kind: string; source_url: string | null; authority_weight: number | null };
+  }>).map((r) => ({
+    id: r.id,
+    document_id: r.document_id,
+    content: r.content,
+    clause_type: r.clause_type,
+    risk_note: r.risk_note,
+    stance: r.stance,
+    deal_type: r.corpus_documents.deal_type,
+    doc_kind: r.corpus_documents.doc_kind,
+    citation: r.citation,
+    section_ref: r.section_ref,
+    source_url: r.corpus_documents.source_url,
+    authority_weight: Number(r.corpus_documents.authority_weight ?? 0.5),
+  }));
+}
+
+// Semantic leg: pgvector cosine match via the match_corpus_chunks RPC
+// (migration 20260712040000). Empty when embeddings are disabled or the query
+// can't be embedded — the caller then behaves exactly as tsv-only.
+async function vectorSearch(
+  supabase: ServiceClient,
+  query: string,
+  filters: CorpusFilters,
+  limit: number
+): Promise<CorpusHit[]> {
+  if (!embeddingsEnabled()) return [];
+  const embedding = await embedQuery(query);
+  if (!embedding) return [];
+
+  const { data, error } = await supabase.rpc("match_corpus_chunks", {
+    query_embedding: JSON.stringify(embedding), // pgvector accepts '[…]' text
+    match_count: limit,
+    verticals: verticalScope(filters.vertical ?? "creator"),
+    kinds: filters.kinds?.length ? [...filters.kinds] : null,
+  });
+  if (error || !data) return [];
+
+  let hits = (data as Array<{
+    id: string; document_id: string; content: string; clause_type: string | null;
+    risk_note: string | null; stance: string; citation: string | null;
+    section_ref: string | null; deal_type: string; doc_kind: string;
+    source_url: string | null; authority_weight: number | null;
+  }>).map((r) => ({
+    id: r.id,
+    document_id: r.document_id,
+    content: r.content,
+    clause_type: r.clause_type,
+    risk_note: r.risk_note,
+    stance: r.stance as CorpusStance,
+    deal_type: r.deal_type,
+    doc_kind: r.doc_kind,
+    citation: r.citation,
+    section_ref: r.section_ref,
+    source_url: r.source_url,
+    authority_weight: Number(r.authority_weight ?? 0.5),
+  }));
+  // Rare filters applied post-hoc (the RPC keeps its signature small).
+  if (filters.deal_type) hits = hits.filter((h) => h.deal_type === filters.deal_type);
+  if (filters.clause_type) hits = hits.filter((h) => h.clause_type === filters.clause_type);
+  return hits;
+}
+
 export async function search(
   query: string,
   filters: CorpusFilters = {},
   limit = 8
 ): Promise<CorpusHit[]> {
-  const websearch = toWebsearch(query);
-  if (!websearch) return [];
-
   try {
     const supabase = await createServiceClient();
 
-    // !inner join so a deal_type filter on the parent document actually restricts
-    // rows (and so we can read deal_type/doc_kind back for the prompt block).
-    let q = supabase
-      .from("corpus_chunks")
-      .select(
-        "id, document_id, content, clause_type, risk_note, stance, citation, section_ref, corpus_documents!inner(deal_type, doc_kind, status, source_url, authority_weight, superseded_by)"
-      )
-      .eq("status", "ready")
-      .eq("corpus_documents.status", "ready")
-      .eq("corpus_documents.sanitized", true)   // D: unsanitized docs never retrieved
-      .is("corpus_documents.superseded_by", null) // superseded authorities never retrieved
-      .in("vertical", verticalScope(filters.vertical ?? "creator"))
-      .textSearch("tsv", websearch, { type: "websearch" });
+    // Hybrid retrieval: lexical (tsv) + semantic (pgvector) in parallel, merged
+    // by Reciprocal Rank Fusion. The vector leg vanishes when OPENAI_API_KEY is
+    // absent or no chunk has an embedding — behaviour is then exactly tsv-only.
+    const [tsvHits, vecHits] = await Promise.all([
+      tsvSearch(supabase, query, filters, limit),
+      vectorSearch(supabase, query, filters, limit),
+    ]);
+    if (!tsvHits.length && !vecHits.length) return [];
 
-    if (filters.deal_type) q = q.eq("corpus_documents.deal_type", filters.deal_type);
-    if (filters.clause_type) q = q.eq("clause_type", filters.clause_type);
-    if (filters.kinds?.length) q = q.in("corpus_documents.doc_kind", [...filters.kinds]);
-
-    const { data, error } = await q.limit(limit);
-    if (error || !data) return [];
-
-    const hits = (data as unknown as Array<{
-      id: string;
-      document_id: string;
-      content: string;
-      clause_type: string | null;
-      risk_note: string | null;
-      stance: CorpusStance;
-      citation: string | null;
-      section_ref: string | null;
-      corpus_documents: { deal_type: string; doc_kind: string; source_url: string | null; authority_weight: number | null };
-    }>).map((r) => ({
-      id: r.id,
-      document_id: r.document_id,
-      content: r.content,
-      clause_type: r.clause_type,
-      risk_note: r.risk_note,
-      stance: r.stance,
-      deal_type: r.corpus_documents.deal_type,
-      doc_kind: r.corpus_documents.doc_kind,
-      citation: r.citation,
-      section_ref: r.section_ref,
-      source_url: r.corpus_documents.source_url,
-      authority_weight: Number(r.corpus_documents.authority_weight ?? 0.5),
-    }));
+    // RRF picks the candidate pool; rank position in each leg is what counts.
+    const RRF_K = 60;
+    const score = new Map<string, number>();
+    const byId = new Map<string, CorpusHit>();
+    for (const leg of [tsvHits, vecHits]) {
+      leg.forEach((h, rank) => {
+        byId.set(h.id, h);
+        score.set(h.id, (score.get(h.id) ?? 0) + 1 / (RRF_K + rank + 1));
+      });
+    }
+    const hits = [...byId.values()]
+      .sort((a, b) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0))
+      .slice(0, limit);
 
     // Feedback nudge: reviewer accept/reject on findings that cited a chunk
     // shifts its rank by ±0.1 max (never dominates authority weight). One extra
