@@ -34,3 +34,45 @@ test("no chunk is empty or whitespace-only", () => {
   const doc = "1. A\n\n\n2. B\n\n   \n3. C";
   for (const c of chunkText(doc)) assert.ok(c.trim().length > 0);
 });
+
+// ── chunkSections (statutory) ────────────────────────────────────────────────
+const { chunkSections } = await import("../lib/corpus/chunk.ts");
+
+test("statute splits per section with refs", () => {
+  const act = [
+    "THE CONSUMER PROTECTION ACT, 2019",
+    "1. Short title. This Act may be called the Consumer Protection Act, 2019.",
+    "2. Definitions. In this Act, unless the context otherwise requires—",
+    "(28) \"misleading advertisement\" means an advertisement which falsely describes a product.",
+    "12A. Special provision inserted by amendment.",
+    "Section 89 Punishment for false or misleading advertisement.",
+  ].join("\n");
+  const chunks = chunkSections(act);
+  const refs = chunks.map((c) => c.section_ref);
+  assert.ok(refs.includes("s.1"), `missing s.1 in ${refs}`);
+  assert.ok(refs.includes("s.2"), `missing s.2 in ${refs}`);
+  assert.ok(refs.includes("s.12A"), `missing s.12A in ${refs}`);
+  assert.ok(refs.includes("s.89"), `missing s.89 in ${refs}`);
+  // sub-clause (28) must NOT start a new section — stays inside s.2
+  const s2 = chunks.find((c) => c.section_ref === "s.2");
+  assert.ok(s2.content.includes("misleading advertisement"), "sub-clause leaked out of s.2");
+});
+
+test("rules get r. refs", () => {
+  const rules = "Rule 3 Due diligence by intermediaries.\nSome text.\nRule 4 Additional obligations.";
+  const refs = chunkSections(rules).map((c) => c.section_ref);
+  assert.ok(refs.includes("r.3") && refs.includes("r.4"), `got ${refs}`);
+});
+
+test("unstructured text falls back to null refs", () => {
+  const chunks = chunkSections("Just a plain paragraph with no sections at all.");
+  assert.ok(chunks.length >= 1);
+  for (const c of chunks) assert.equal(c.section_ref, null);
+});
+
+test("oversized section keeps its ref on every piece", () => {
+  const big = "Section 5 Liability.\n" + "word ".repeat(1500);
+  const chunks = chunkSections(big);
+  assert.ok(chunks.length >= 2, "must split");
+  for (const c of chunks) assert.equal(c.section_ref, "s.5");
+});

@@ -38,3 +38,48 @@ export function chunkText(text: string): string[] {
   }
   return chunks.filter(Boolean);
 }
+
+// ── statutory chunking ────────────────────────────────────────────────────────
+// Splits an act/statute/regulation into per-section chunks, each carrying the
+// section reference ("s.2", "s.12A", "r.4") so retrieval can cite the exact
+// provision. Falls back to plain chunkText behaviour (null refs) when no
+// section structure is detectable.
+
+export interface SectionChunk {
+  content: string;
+  section_ref: string | null;
+}
+
+// Matches section headings at line start: "Section 12.", "12.", "12A.", and
+// rule/regulation forms "Rule 4", "Regulation 3". Requires the heading to start
+// the line so clause cross-references mid-sentence don't split.
+const SECTION_HEAD = /^(?:(?:section|sec\.?)\s+(\d+[A-Z]{0,2})|(?:rule)\s+(\d+[A-Z]{0,2})|(?:regulation|reg\.?)\s+(\d+[A-Z]{0,2})|(\d+[A-Z]{0,2})\.(?=\s+\S))/i;
+
+export function chunkSections(text: string): SectionChunk[] {
+  const clean = text.replace(/\r\n/g, "\n").trim();
+  if (!clean) return [];
+
+  const lines = clean.split("\n");
+  const sections: { ref: string | null; lines: string[] }[] = [{ ref: null, lines: [] }];
+  for (const line of lines) {
+    const m = line.trim().match(SECTION_HEAD);
+    if (m) {
+      const num = m[1] ?? m[2] ?? m[3] ?? m[4];
+      const prefix = m[2] ? "r." : m[3] ? "reg." : "s.";
+      sections.push({ ref: `${prefix}${num.toUpperCase()}`, lines: [line] });
+    } else {
+      sections[sections.length - 1].lines.push(line);
+    }
+  }
+
+  const out: SectionChunk[] = [];
+  for (const s of sections) {
+    const content = s.lines.join("\n").trim();
+    if (!content) continue;
+    // Oversized section → re-wrap via chunkText; every piece keeps the ref.
+    for (const piece of chunkText(content)) out.push({ content: piece, section_ref: s.ref });
+  }
+
+  // No section structure detected → behave exactly like chunkText (null refs).
+  return out.some((c) => c.section_ref) ? out : out.map((c) => ({ ...c, section_ref: null }));
+}

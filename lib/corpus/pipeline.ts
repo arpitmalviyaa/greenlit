@@ -12,7 +12,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { extractTextFromBuffer } from "@/lib/utils/extract-text";
 import { callStructured, AIOutputError } from "@/lib/anthropic/structured";
 import { MODELS } from "@/lib/anthropic/utils";
-import { chunkText } from "./chunk";
+import { chunkText, chunkSections } from "./chunk";
+import { isAuthorityKind, defaultAuthorityWeight } from "./authority";
+import { embedTexts } from "./embed";
 
 const CLAUSE_TYPES = [
   "usage_rights", "exclusivity", "payment_terms", "indemnity", "termination",
@@ -87,7 +89,10 @@ async function classifyAndSave(
   chunks: string[],
   vertical: string
 ): Promise<{ status: "ready" | "needs_review"; count: number }> {
-  const byIndex = await classifyChunks(chunks);
+  const [byIndex, embeddings] = await Promise.all([
+    classifyChunks(chunks),
+    embedTexts(chunks), // null when OPENAI_API_KEY absent — tsv-only, never fails ingest
+  ]);
   let anyReview = false;
   const rows = chunks.map((content, i) => {
     const c = byIndex.get(i);
@@ -97,10 +102,33 @@ async function classifyAndSave(
       document_id: documentId, chunk_index: i, content, vertical,
       clause_type: c?.clause_type ?? null, risk_note: c?.risk_note ?? null,
       stance: c?.stance ?? "market_standard", status: low ? "needs_review" : "ready",
+      embedding: embeddings?.[i] ?? null,
     };
   });
   await supabase.from("corpus_chunks").insert(rows);
   return { status: anyReview ? "needs_review" : "ready", count: rows.length };
+}
+
+// Save an authority document's chunks: section-aware, no AI classification
+// (statutes have no stance), citation + section_ref on every chunk.
+async function saveAuthorityChunks(
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
+  documentId: string,
+  text: string,
+  vertical: string,
+  citation: string | null
+): Promise<{ status: "ready" | "needs_review"; count: number }> {
+  const sections = chunkSections(text);
+  if (!sections.length) throw new Error("chunking produced no content");
+  const embeddings = await embedTexts(sections.map((s) => s.content));
+  const rows = sections.map((s, i) => ({
+    document_id: documentId, chunk_index: i, content: s.content, vertical,
+    clause_type: null, risk_note: null, stance: "market_standard", status: "ready",
+    citation, section_ref: s.section_ref,
+    embedding: embeddings?.[i] ?? null,
+  }));
+  await supabase.from("corpus_chunks").insert(rows);
+  return { status: "ready", count: rows.length };
 }
 
 export interface IngestInput {
@@ -115,6 +143,16 @@ export interface IngestInput {
   file?: { buffer: Buffer; fileName: string; mimeType: string; storageKey: string };
   // Note-only document (quick-add founder annotation):
   noteText?: string;
+  // Legal-authority metadata (acts/statutes/rules/…): see lib/corpus/authority.ts
+  authority?: {
+    citation?: string | null;      // "Consumer Protection Act, 2019"
+    section_ref?: string | null;   // when the doc IS one provision
+    jurisdiction?: string | null;  // default 'IN' (DB default)
+    issuing_body?: string | null;
+    effective_date?: string | null; // ISO date
+    source_url?: string | null;
+    authority_weight?: number | null; // defaults by kind
+  };
 }
 
 export interface IngestResult {
@@ -141,6 +179,13 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
       founder_note: input.founder_note ?? null,
       file_path: input.file?.storageKey ?? null,
       status: "processing",
+      citation: input.authority?.citation ?? null,
+      section_ref: input.authority?.section_ref ?? null,
+      jurisdiction: input.authority?.jurisdiction ?? "IN",
+      issuing_body: input.authority?.issuing_body ?? null,
+      effective_date: input.authority?.effective_date ?? null,
+      source_url: input.authority?.source_url ?? null,
+      authority_weight: input.authority?.authority_weight ?? defaultAuthorityWeight(input.doc_kind),
     })
     .select("id")
     .single();
@@ -175,12 +220,16 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
     );
     if (exErr || !text) throw new Error(exErr ?? "no extractable text");
 
-    // 3. Chunk.
-    const chunks = chunkText(text);
-    if (!chunks.length) throw new Error("chunking produced no content");
-
-    // 4+5. Classify + save chunks.
-    const { status, count } = await classifyAndSave(supabase, documentId, chunks, vertical);
+    // 3-5. Chunk + classify + save. Authority docs chunk by section and skip
+    // AI stance-classification (a statute has no "stance"); each chunk carries
+    // the doc citation + its own section_ref so retrieval cites the provision.
+    const { status, count } = isAuthorityKind(input.doc_kind)
+      ? await saveAuthorityChunks(supabase, documentId, text, vertical, input.authority?.citation ?? null)
+      : await (async () => {
+          const chunks = chunkText(text);
+          if (!chunks.length) throw new Error("chunking produced no content");
+          return classifyAndSave(supabase, documentId, chunks, vertical);
+        })();
     await supabase.from("corpus_documents")
       .update({ extracted_text: text.slice(0, 200_000), status }).eq("id", documentId);
 
@@ -196,7 +245,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
 export async function reprocessDocument(documentId: string): Promise<IngestResult> {
   const supabase = await createServiceClient();
   const { data: doc } = await supabase.from("corpus_documents")
-    .select("uploaded_by, doc_kind, deal_type, vertical, title, source_note, founder_note, file_path, extracted_text")
+    .select("uploaded_by, doc_kind, deal_type, vertical, title, source_note, founder_note, file_path, extracted_text, citation")
     .eq("id", documentId).single();
   if (!doc) return { id: documentId, status: "failed", chunk_count: 0, error: "not found" };
 
@@ -218,14 +267,20 @@ export async function reprocessDocument(documentId: string): Promise<IngestResul
     return { id: documentId, status: "failed", chunk_count: 0, error: "no text to reprocess" };
   }
 
-  const chunks = chunkText(text);
-  if (!chunks.length) {
-    await supabase.from("corpus_documents").update({ status: "failed" }).eq("id", documentId);
-    return { id: documentId, status: "failed", chunk_count: 0, error: "chunking produced no content" };
+  const rpVertical = (doc.vertical as string | null) ?? "creator";
+  let status: "ready" | "needs_review", count: number;
+  if (isAuthorityKind(doc.doc_kind as string)) {
+    ({ status, count } = await saveAuthorityChunks(
+      supabase, documentId, text, rpVertical, (doc.citation as string | null) ?? null
+    ));
+  } else {
+    const chunks = chunkText(text);
+    if (!chunks.length) {
+      await supabase.from("corpus_documents").update({ status: "failed" }).eq("id", documentId);
+      return { id: documentId, status: "failed", chunk_count: 0, error: "chunking produced no content" };
+    }
+    ({ status, count } = await classifyAndSave(supabase, documentId, chunks, rpVertical));
   }
-  const { status, count } = await classifyAndSave(
-    supabase, documentId, chunks, (doc.vertical as string | null) ?? "creator"
-  );
   await supabase.from("corpus_documents").update({ status }).eq("id", documentId);
   return { id: documentId, status, chunk_count: count };
 }
