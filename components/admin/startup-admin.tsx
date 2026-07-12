@@ -20,6 +20,7 @@ const btnGhost = "inline-flex items-center justify-center rounded-lg border bord
 type Issue = { clause_ref: string; plain_english: string; why_it_matters: string; action: string; suggested_wording: string };
 type Flag = { item: string; status: string; note: string };
 type Memo = { bottom_line: string; top_issues: Issue[]; diligence_flags: Flag[]; standard_no_action: string; needs_lawyer: { item: string; reason: string }[]; next_step: string };
+type DocStatusRow = { id: string; sub_type: string; title: string | null; status: string };
 type MemoRow = { id: string; memo_json: Memo; status: string; prepared_for: string | null; document_label: string | null; reviewed_by: string | null; reviewed_at: string | null };
 type MatterRow = { id: string; title: string; sub_type: string | null; created_at: string; startup_memos: { status: string }[]; startup_documents: { count: number }[] };
 
@@ -108,8 +109,12 @@ function MattersList({ onOpen }: { onOpen: (id: string) => void }) {
     const res = await fetch("/api/admin/startup");
     if (res.ok) setMatters(await res.json() as MatterRow[]);
   })(); }, []);
+  const pending = matters.filter((m) => m.startup_memos?.length && m.startup_memos[0]?.status !== "reviewed").length;
   return (
     <div className="overflow-x-auto">
+      {pending > 0 && (
+        <p className="mb-2 text-sm text-amber-400">{pending} memo{pending === 1 ? "" : "s"} awaiting review</p>
+      )}
       <table className="w-full text-left text-sm">
         <thead className="text-xs uppercase text-zinc-500"><tr><th className="py-2">Matter</th><th>Type</th><th>Docs</th><th>Memo</th></tr></thead>
         <tbody>
@@ -135,15 +140,27 @@ function MatterDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [docs, setDocs] = useState<DocStatusRow[]>([]);
+
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/startup/${id}`);
     if (!res.ok) return;
-    const body = await res.json() as { memo: MemoRow | null };
+    const body = await res.json() as { memo: MemoRow | null; documents?: DocStatusRow[] };
+    setDocs(body.documents ?? []);
     if (body.memo) {
       setRow(body.memo); setMemo(body.memo.memo_json);
       setHeader({ prepared_for: body.memo.prepared_for ?? "", document_label: body.memo.document_label ?? "", reviewed_by: body.memo.reviewed_by ?? "" });
     }
   }, [id]);
+
+  async function reprocessDoc(docId: string) {
+    setBusy(true); setMsg("Reprocessing document…");
+    const res = await fetch(`/api/admin/startup/doc/${docId}`, { method: "POST" });
+    const body = await res.json() as { error?: string };
+    setMsg(res.ok ? "Document reprocessed — text and terms refreshed." : (body.error ?? "Reprocess failed."));
+    setBusy(false);
+    void load();
+  }
   useEffect(() => { void load(); }, [load]);
 
   if (!memo || !row) return <div className="mx-auto max-w-4xl px-4 py-8 text-white"><button className={btnGhost} onClick={onBack}>← Back</button><p className="mt-4 text-zinc-500">Loading memo…</p></div>;
@@ -201,6 +218,17 @@ function MatterDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 {["accept", "negotiate", "fix_now"].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
+      {docs.some((d) => d.status === "failed") && (
+        <div className="rounded-lg border border-red-500/30 p-3 text-sm">
+          <p className="mb-2 text-red-400">Failed documents — text never extracted, memo may be incomplete:</p>
+          {docs.filter((d) => d.status === "failed").map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 py-1">
+              <span className="text-zinc-300">{d.title ?? d.sub_type}</span>
+              <button className={btnGhost} disabled={busy} onClick={() => void reprocessDoc(d.id)}>Reprocess</button>
+            </div>
+          ))}
+        </div>
+      )}
             <textarea className={field} rows={2} placeholder="Plain English" value={iss.plain_english} onChange={(e) => patch({ top_issues: memo.top_issues.map((x, idx) => idx === i ? { ...x, plain_english: e.target.value } : x) })} />
             <textarea className={field} rows={2} placeholder="Suggested wording" value={iss.suggested_wording} onChange={(e) => patch({ top_issues: memo.top_issues.map((x, idx) => idx === i ? { ...x, suggested_wording: e.target.value } : x) })} />
             <button className={btnGhost} onClick={() => patch({ top_issues: memo.top_issues.filter((_, idx) => idx !== i) })}>Remove issue</button>

@@ -86,6 +86,39 @@ function numberedBlock(hits: CorpusHit[]): string {
   }).join("\n\n");
 }
 
+// The grounding contract, as code: resolve each finding's cited indexes to the
+// actually-retrieved chunk rows; a finding with zero valid citations is DROPPED.
+// Pure — exported for direct unit testing.
+export function resolveGroundedFindings(
+  raw: z.infer<typeof FindingsSchema>["findings"],
+  scoped: CorpusHit[]
+): ComplianceFinding[] {
+  const findings: ComplianceFinding[] = [];
+  for (const f of raw) {
+    const cited = f.cited_chunks
+      .filter((i) => i >= 0 && i < scoped.length)
+      .map((i) => scoped[i]);
+    if (!cited.length) continue; // un-grounded → dropped
+    findings.push({
+      id: randomUUID(),
+      issue: f.issue,
+      severity: f.severity,
+      statute_citation: f.statute_citation,
+      section_ref: f.section_ref ?? cited[0].section_ref,
+      explanation: f.explanation,
+      suggested_fix: f.suggested_fix ?? null,
+      confidence: f.confidence,
+      citations: cited.map((c) => ({
+        chunk_id: c.id,
+        citation: c.citation,
+        section_ref: c.section_ref,
+        source_url: c.source_url,
+      })),
+    });
+  }
+  return findings;
+}
+
 // ── main entry ────────────────────────────────────────────────────────────────
 
 export async function complianceCheck(opts: {
@@ -135,31 +168,9 @@ export async function complianceCheck(opts: {
       toolName: "report_compliance_findings",
     });
 
-    // 4. Enforce the grounding contract: resolve cited indexes → chunk rows;
-    //    findings with zero valid citations are dropped.
-    const findings: ComplianceFinding[] = [];
-    for (const f of depth.findings) {
-      const cited = f.cited_chunks
-        .filter((i) => i >= 0 && i < scoped.length)
-        .map((i) => scoped[i]);
-      if (!cited.length) continue; // un-grounded → dropped
-      findings.push({
-        id: randomUUID(),
-        issue: f.issue,
-        severity: f.severity,
-        statute_citation: f.statute_citation,
-        section_ref: f.section_ref ?? cited[0].section_ref,
-        explanation: f.explanation,
-        suggested_fix: f.suggested_fix ?? null,
-        confidence: f.confidence,
-        citations: cited.map((c) => ({
-          chunk_id: c.id,
-          citation: c.citation,
-          section_ref: c.section_ref,
-          source_url: c.source_url,
-        })),
-      });
-    }
+    // 4. Enforce the grounding contract (pure, unit-tested in
+    //    tests/compliance-grounding.test.mjs).
+    const findings = resolveGroundedFindings(depth.findings, scoped);
 
     // 5. Persist + provenance. Best-effort: a logging failure never breaks the check.
     if (findings.length) {

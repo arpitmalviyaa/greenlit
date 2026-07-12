@@ -95,3 +95,38 @@ export async function createStartupMatter(input: {
 
   return { matter_id: matterId, memo_id: memoRow.id as string, inconsistencies };
 }
+
+// Reprocess a failed document: re-download from storage, re-extract text,
+// re-run term extraction. Un-deadends startup_documents.status='failed'
+// (e.g. a scanned PDF that failed before vision fallback, or a transient
+// extraction error). Does NOT regenerate the matter memo — the reviewer edits
+// or re-creates the matter once the text is available.
+export async function reprocessStartupDocument(docId: string): Promise<{ ok: boolean; status: string; error?: string }> {
+  const supabase = await createServiceClient();
+  const { data: doc } = await supabase.from("startup_documents")
+    .select("id, sub_type, file_path, extracted_text")
+    .eq("id", docId).single();
+  if (!doc) return { ok: false, status: "failed", error: "not found" };
+
+  let text = (doc.extracted_text as string | null) ?? "";
+  if (doc.file_path) {
+    const { data: blob } = await supabase.storage.from("startup-docs").download(doc.file_path as string);
+    if (blob) {
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const ex = await extractTextFromBuffer(buffer, blob.type || "application/pdf", doc.file_path as string);
+      if (ex.text) text = ex.text;
+    }
+  }
+  if (!text) {
+    await supabase.from("startup_documents").update({ status: "failed" }).eq("id", docId);
+    return { ok: false, status: "failed", error: "no text could be extracted" };
+  }
+
+  const terms = await extractDocTerms(doc.sub_type as string, text);
+  await supabase.from("startup_documents").update({
+    extracted_text: text.slice(0, 200_000),
+    doc_analysis: terms ?? null,
+    status: "ready",
+  }).eq("id", docId);
+  return { ok: true, status: "ready" };
+}

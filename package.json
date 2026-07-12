@@ -29,7 +29,9 @@
     "verify:release": "node scripts/verify-release.mjs",
     "test:ai-schemas": "node --test tests/redflags-schema.test.mjs",
     "qa:cross-tenant": "node scripts/qa-cross-tenant.mjs",
-    "qa:prod-flow": "node scripts/qa-prod-flow.mjs"
+    "qa:prod-flow": "node scripts/qa-prod-flow.mjs",
+    "test:corpus": "node --test tests/corpus-chunk.test.mjs && node --test --import ./tests/helpers/register-loader.mjs tests/compliance-grounding.test.mjs tests/export-gate.test.mjs",
+    "corpus:eval": "npx tsx scripts/corpus-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

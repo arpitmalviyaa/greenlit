@@ -56,3 +56,24 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 - `scripts/corpus-backfill-embeddings.ts` — idempotent backfill for null-embedding rows; batches; aborts cleanly and is safe to re-run.
 - Env: `OPENAI_API_KEY` (text-embedding-3-small, 1536d = the existing column). **Not present in `.env.local` — manual step.**
 - `tsc` clean; chunker tests 9/9.
+
+## Stage 5 — Admin surface, advisor closeout, startup ops, tests ✅
+### Admin
+- Master portal links to `/admin/corpus` + `/admin/startup` (done in the earlier session, commit `553db1b`).
+- Authority-ingest view: the corpus Upload tab's kind dropdown now has a "Legal authority" optgroup (act/statute/rule/regulation/notification/circular/case_law/guideline); picking one reveals citation / jurisdiction / effective date / issuing body / source URL fields, passed through the API to `ingestDocument`. Link tab can also ingest as any kind. Sanitized toggle already existed in Library (unchanged gate).
+### Security advisor closeout — `20260712050000_security_advisor_closeout.sql` (**PROD-ONLY, not yet applied — hard gate**)
+- 9 fns pinned `search_path=''` with schema-qualified bodies (get_user_org_id, get_user_role, same_org, handle_updated_at, update_updated_at_column, update_claims_updated_at, fn_approval_to_timeline, fn_invoice_paid_timeline, fn_delivery_lock_timeline). CREATE OR REPLACE keeps triggers/policies bound.
+- `platform_creator_overview`: EXECUTE revoked from public/anon/authenticated; body redefined without the `auth.uid()` self-gate (it returns zero rows under the service role); `/api/master/overview` now does the platform_admins check itself then calls via **service client** (code changed in this commit — deploy together with the migration).
+- `analytics_events` + `scope_items`: RLS-no-policy documented as intentional service-role-only via table comments (scope_items has zero code references — legacy, flag OFF).
+- `early_access`: always-true anon INSERT policy **dropped** — zero code paths use it (all "Get early access" CTAs route to /signup).
+- NOTE: this migration is NOT applicable to the corpus staging project (none of these objects exist there). `auth_leaked_password_protection` is a dashboard toggle — manual step.
+### Startup ops
+- `reprocessStartupDocument()` in `lib/startup/run.ts` + `POST /api/admin/startup/doc/[id]` — re-downloads from storage, re-extracts text, re-runs term extraction, flips `failed → ready`. Does NOT regenerate the memo (reviewer edits or re-creates the matter).
+- Admin startup UI: matters list shows an "N memos awaiting review" banner (fixes drafts-wait-silently); matter detail shows failed documents with a one-click Reprocess button.
+- Reviewer assignment/notification: NOT built — single-platform-admin operation today and email infra is blocked on founder Resend/DNS; the awaiting-review banner covers the operational gap. Revisit when there is >1 reviewer.
+- FK decision: `workspace_id` / `prepared_for` STAY free-text/no-FK — the startup tool is admin-only and single-tenant today; the ponytail comment in `20260708000001` already marks the upgrade path (add FK + same_org RLS when the tenant-facing UI ships).
+### Tests
+- `tests/helpers/alias-loader.mjs` + `register-loader.mjs` — Node resolve hooks: `@/` alias → repo root, extensionless relative `.ts` imports, `next/*` subpath `.js` fix, and mock substitution for `@/lib/corpus/admin` + `@/lib/supabase/server`. Enables true route-level tests without a Next server.
+- `tests/export-gate.test.mjs` (route-level, real handler): draft → **403**, reviewed → 200 HTML, missing → 404, non-admin → 404. 4/4.
+- `tests/compliance-grounding.test.mjs`: grounding contract on the exact production code path (`resolveGroundedFindings`, extracted pure) — every finding ≥1 resolved citation, out-of-range-only findings dropped, invalid indexes stripped, section_ref fallback, flag-OFF short-circuit. 5/5.
+- npm scripts: `test:corpus`, `corpus:eval`. Full run: 9 chunker + 9 route/grounding tests pass; `tsc` + eslint clean.

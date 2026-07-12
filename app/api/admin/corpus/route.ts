@@ -8,7 +8,11 @@ import { htmlToText, htmlTitle } from "@/lib/utils/html-to-text";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
-const DOC_KINDS = ["contract", "dispute", "judgment", "negotiation", "clause_note", "founder_annotation"];
+const DOC_KINDS = [
+  "contract", "dispute", "judgment", "negotiation", "clause_note", "founder_annotation",
+  // legal-authority kinds (Stage 1)
+  "act", "statute", "rule", "regulation", "notification", "circular", "case_law", "guideline",
+];
 const DEAL_TYPES = ["paid_promotion", "barter", "ugc_license", "ambassadorship", "representation", "platform", "other"];
 
 // List documents (library view). Optional ?vertical= filter.
@@ -115,15 +119,24 @@ export async function POST(request: Request) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
   const storageKey = `${randomUUID()}/${safeName}`;
 
+  const str = (k: string) => (form.get(k) as string | null)?.trim() || null;
+  const effectiveDate = str("effective_date");
   const result = await ingestDocument({
     uploaded_by: user.id,
     doc_kind,
     deal_type,
     vertical: verticalRaw,
-    title: (form.get("title") as string | null)?.trim() || file.name,
-    source_note: (form.get("source_note") as string | null)?.trim() || null,
-    founder_note: (form.get("founder_note") as string | null)?.trim() || null,
+    title: str("title") || file.name,
+    source_note: str("source_note"),
+    founder_note: str("founder_note"),
     file: { buffer, fileName: file.name, mimeType: file.type || "application/pdf", storageKey },
+    authority: {
+      citation: str("citation"),
+      jurisdiction: str("jurisdiction"),
+      issuing_body: str("issuing_body"),
+      effective_date: effectiveDate && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate) ? effectiveDate : null,
+      source_url: str("source_url"),
+    },
   });
 
   return NextResponse.json(result, { status: result.status === "failed" ? 422 : 201 });

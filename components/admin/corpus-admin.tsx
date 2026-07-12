@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const DOC_KINDS = ["contract", "dispute", "judgment", "negotiation", "clause_note", "founder_annotation"];
+const AUTHORITY_KINDS = ["act", "statute", "rule", "regulation", "notification", "circular", "case_law", "guideline"];
+const ALL_KINDS = [...DOC_KINDS, ...AUTHORITY_KINDS];
 const DEAL_TYPES = ["paid_promotion", "barter", "ugc_license", "ambassadorship", "representation", "platform", "other"];
 const VERTICALS = ["creator", "startup", "litigation", "general"];
 const CLAUSE_TYPES = ["", "usage_rights", "exclusivity", "payment_terms", "indemnity", "termination", "morality", "ip_assignment", "confidentiality", "deliverables", "other"];
@@ -16,7 +18,7 @@ const btnGhost = "inline-flex items-center justify-center rounded-lg border bord
 
 type DocRow = { id: string; doc_kind: string; deal_type: string; vertical: string; sanitized: boolean; title: string | null; status: string; chunk_count: number; created_at: string };
 type Chunk = { id: string; chunk_index: number; content: string; clause_type: string | null; risk_note: string | null; stance: string; status: string };
-type Staged = { file: File; doc_kind: string; deal_type: string; vertical: string; title: string; founder_note: string; source_note: string; state: "idle" | "uploading" | "done" | "error"; msg?: string };
+type Staged = { file: File; doc_kind: string; deal_type: string; vertical: string; title: string; founder_note: string; source_note: string; citation: string; jurisdiction: string; issuing_body: string; effective_date: string; source_url: string; state: "idle" | "uploading" | "done" | "error"; msg?: string };
 
 export function CorpusAdmin() {
   const [tab, setTab] = useState<"upload" | "link" | "library" | "note">("upload");
@@ -54,7 +56,9 @@ function UploadView() {
       ...prev,
       ...Array.from(files).map((file) => ({
         file, doc_kind: "contract", deal_type: "other", vertical: "creator",
-        title: file.name, founder_note: "", source_note: "", state: "idle" as const,
+        title: file.name, founder_note: "", source_note: "",
+        citation: "", jurisdiction: "IN", issuing_body: "", effective_date: "", source_url: "",
+        state: "idle" as const,
       })),
     ]);
   }, []);
@@ -73,6 +77,13 @@ function UploadView() {
     fd.set("title", it.title);
     fd.set("founder_note", it.founder_note);
     fd.set("source_note", it.source_note);
+    if (AUTHORITY_KINDS.includes(it.doc_kind)) {
+      fd.set("citation", it.citation);
+      fd.set("jurisdiction", it.jurisdiction);
+      fd.set("issuing_body", it.issuing_body);
+      fd.set("effective_date", it.effective_date);
+      fd.set("source_url", it.source_url);
+    }
     try {
       const res = await fetch("/api/admin/corpus", { method: "POST", body: fd });
       const body = await res.json() as { status?: string; chunk_count?: number; error?: string };
@@ -112,7 +123,12 @@ function UploadView() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <select className={field} value={it.doc_kind} onChange={(e) => update(i, { doc_kind: e.target.value })}>
-              {DOC_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              <optgroup label="House knowledge">
+                {DOC_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              </optgroup>
+              <optgroup label="Legal authority">
+                {AUTHORITY_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              </optgroup>
             </select>
             <select className={field} value={it.deal_type} onChange={(e) => update(i, { deal_type: e.target.value })}>
               {DEAL_TYPES.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -122,6 +138,15 @@ function UploadView() {
             </select>
             <input className={`${field} col-span-2`} placeholder="Title" value={it.title} onChange={(e) => update(i, { title: e.target.value })} />
             <textarea className={`${field} col-span-2`} rows={2} placeholder="What should the system learn from this?" value={it.founder_note} onChange={(e) => update(i, { founder_note: e.target.value })} />
+            {AUTHORITY_KINDS.includes(it.doc_kind) && (
+              <>
+                <input className={`${field} col-span-2`} placeholder='Citation — e.g. "Consumer Protection Act, 2019"' value={it.citation} onChange={(e) => update(i, { citation: e.target.value })} />
+                <input className={field} placeholder="Jurisdiction" value={it.jurisdiction} onChange={(e) => update(i, { jurisdiction: e.target.value })} />
+                <input className={field} type="date" title="Effective date" value={it.effective_date} onChange={(e) => update(i, { effective_date: e.target.value })} />
+                <input className={field} placeholder="Issuing body — e.g. MeitY, SEBI" value={it.issuing_body} onChange={(e) => update(i, { issuing_body: e.target.value })} />
+                <input className={field} placeholder="Official source URL" value={it.source_url} onChange={(e) => update(i, { source_url: e.target.value })} />
+              </>
+            )}
           </div>
           <div className="mt-2 flex gap-2">
             <button className={btn} disabled={it.state === "uploading" || it.state === "done"} onClick={() => ingestOne(i, it)}>Ingest</button>
@@ -300,7 +325,7 @@ function LinkView() {
       <input className={field} placeholder="Title (optional — defaults to the page title)" value={title} onChange={(e) => setTitle(e.target.value)} />
       <div className="grid grid-cols-2 gap-2">
         <select className={field} value={docKind} onChange={(e) => setDocKind(e.target.value)}>
-          {DOC_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+          {ALL_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
         <select className={field} value={vertical} onChange={(e) => setVertical(e.target.value)}>
           {VERTICALS.map((k) => <option key={k} value={k}>vertical: {k}</option>)}
