@@ -77,3 +77,39 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 - `tests/export-gate.test.mjs` (route-level, real handler): draft → **403**, reviewed → 200 HTML, missing → 404, non-admin → 404. 4/4.
 - `tests/compliance-grounding.test.mjs`: grounding contract on the exact production code path (`resolveGroundedFindings`, extracted pure) — every finding ≥1 resolved citation, out-of-range-only findings dropped, invalid indexes stripped, section_ref fallback, flag-OFF short-circuit. 5/5.
 - npm scripts: `test:corpus`, `corpus:eval`. Full run: 9 chunker + 9 route/grounding tests pass; `tsc` + eslint clean.
+
+## Migrations table
+| File | Staging (xjlhtwsbsfpsxwsnkkkzz*) | Prod (ovjqzgzqcyowitjfwptz) |
+|---|---|---|
+| `20260712000000_move_extensions_out_of_public.sql` | ✅ applied | ✅ pre-existing (out-of-band, now reconciled) |
+| `20260712010000_legal_authority_layer.sql` | ✅ applied | ⏳ pending go-ahead |
+| `20260712020000_compliance_findings.sql` | ✅ applied (FK conditional — no contracts table there) | ⏳ pending go-ahead |
+| `20260712030000_finding_feedback.sql` | ✅ applied | ⏳ pending go-ahead |
+| `20260712040000_vector_search.sql` | ✅ applied | ⏳ pending go-ahead |
+| `20260712050000_security_advisor_closeout.sql` | ✖️ N/A (app schema absent — prod-only) | ⏳ pending go-ahead |
+
+*staging project id: xjlhtwsbfpsxwsnkkkzz
+
+## Commits this run
+- `fede799` Stage 0 — pgvector reconcile (prior session, same day)
+- `553db1b` Link ingest + admin nav links (prior session, same day)
+- `1c7e582` Stage 1 — authority layer
+- `4b9c92f` Stage 2 — compliance layer
+- `6311463` Stage 3 — feedback loop
+- `d777ed6` Stage 4 — hybrid retrieval
+- `558af29` Stage 5 — admin/authority view, advisor closeout, startup ops, tests
+- (this commit) deliverables: BUILD_LOG final, MANUAL_STEPS refresh
+
+## Test summary (all green at HEAD)
+- `tests/corpus-chunk.test.mjs` 9/9 (chunker + statutory sections)
+- `tests/compliance-grounding.test.mjs` 5/5 (grounding contract, production code path)
+- `tests/export-gate.test.mjs` 4/4 (route-level 403 review-gate)
+- Pre-existing: startup-logic 9/9, vertical-scope 5/5, redflags-schema 5/5
+- `tsc --noEmit` clean, eslint clean, dev server compiles with zero errors
+
+## Blocked on user (see MANUAL_STEPS.md)
+1. `OPENAI_API_KEY` (embeddings stay gracefully off without it)
+2. Prod migration applies 1-5 (hard gate)
+3. `vercel deploy --prod` (hard gate)
+4. Leaked-password dashboard toggle (may be plan-gated)
+5. Document ingest + sanitize + legal review, then `complianceCheck` flag flip
