@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, LogOut, Plus, Trash2, Users } from "lucide-react";
+import { BookOpen, Database, LogOut, Plus, Rocket, Trash2, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Creator = {
   profile_id: string; creator_name: string; email: string; organisation_name: string | null;
@@ -63,6 +64,9 @@ export function MasterPortal({ adminName }: { adminName: string }) {
         <nav className="border-r border-white/10 p-4">
           <button onClick={() => setTab("creators")} className={`mb-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${tab === "creators" ? "bg-white text-black" : "text-zinc-500 hover:bg-white/10 hover:text-white"}`}><Users className="h-4 w-4" />Creators</button>
           <button onClick={() => setTab("repository")} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${tab === "repository" ? "bg-white text-black" : "text-zinc-500 hover:bg-white/10 hover:text-white"}`}><BookOpen className="h-4 w-4" />Knowledge repository</button>
+          <p className="mt-6 mb-2 px-3 text-[10px] uppercase tracking-widest text-zinc-700">Admin tools</p>
+          <Link href="/admin/corpus" className="mb-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-500 hover:bg-white/10 hover:text-white"><Database className="h-4 w-4" />Corpus</Link>
+          <Link href="/admin/startup" className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-500 hover:bg-white/10 hover:text-white"><Rocket className="h-4 w-4" />Startup analyses</Link>
           <p className="mt-8 px-3 text-xs leading-5 text-zinc-700">Contract files, clauses, messages, analyses, and confidential details are intentionally unavailable here.</p>
         </nav>
         <main className="p-6 md:p-8">

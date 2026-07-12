@@ -17,6 +17,11 @@ export async function extractTextFromBuffer(
     ) {
       return extractDocx(buffer);
     }
+    // Plain text (e.g. a blog/article link already stripped to text by the caller).
+    if (mimeType.startsWith("text/") || /\.(txt|md|markdown)$/i.test(fileName)) {
+      const text = buffer.toString("utf8").trim();
+      return text ? { text } : { text: "", error: "empty text" };
+    }
     // Photo of a contract (or HEIC, which returns a friendly "use JPG" error).
     const { isVisionImage, transcribeImage } = await import("./vision-extract.ts");
     if (isVisionImage(mimeType, fileName) || /\.heic$/i.test(fileName) || mimeType === "image/heic") {

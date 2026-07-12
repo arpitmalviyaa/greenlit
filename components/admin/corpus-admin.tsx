@@ -19,22 +19,24 @@ type Chunk = { id: string; chunk_index: number; content: string; clause_type: st
 type Staged = { file: File; doc_kind: string; deal_type: string; vertical: string; title: string; founder_note: string; source_note: string; state: "idle" | "uploading" | "done" | "error"; msg?: string };
 
 export function CorpusAdmin() {
-  const [tab, setTab] = useState<"upload" | "library" | "note">("upload");
+  const [tab, setTab] = useState<"upload" | "link" | "library" | "note">("upload");
+  const label = { upload: "Upload", link: "Link", library: "Library", note: "Quick note" } as const;
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 text-white">
       <header className="mb-6">
         <h1 className="text-xl font-semibold">Corpus</h1>
-        <p className="text-sm text-zinc-500">House knowledge — contracts, disputes, judgments, reviewer notes. Only you see this.</p>
+        <p className="text-sm text-zinc-500">House knowledge — contracts, judgments, blog links, reviewer notes. Only you see this.</p>
       </header>
       <nav className="mb-6 flex gap-2">
-        {(["upload", "library", "note"] as const).map((t) => (
+        {(["upload", "link", "library", "note"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`rounded-lg px-3 py-1.5 text-sm ${tab === t ? "bg-white text-black" : "border border-white/15 text-zinc-300"}`}>
-            {t === "upload" ? "Upload" : t === "library" ? "Library" : "Quick note"}
+            {label[t]}
           </button>
         ))}
       </nav>
       {tab === "upload" && <UploadView />}
+      {tab === "link" && <LinkView />}
       {tab === "library" && <LibraryView />}
       {tab === "note" && <NoteView />}
     </div>
@@ -262,6 +264,50 @@ function DocDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       ))}
       {!chunks.length && <p className="text-sm text-zinc-500">No chunks (document may still be processing or failed).</p>}
+    </div>
+  );
+}
+
+function LinkView() {
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [docKind, setDocKind] = useState("clause_note");
+  const [vertical, setVertical] = useState("creator");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!url.trim()) return;
+    setBusy(true); setMsg("");
+    try {
+      const res = await fetch("/api/admin/corpus", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), title, doc_kind: docKind, vertical }),
+      });
+      const body = await res.json() as { status?: string; chunk_count?: number; error?: string };
+      if (res.ok) { setUrl(""); setTitle(""); setMsg(`Ingested — ${body.status} · ${body.chunk_count} chunks. Sanitize it in Library to make it retrievable.`); }
+      else setMsg(body.error ?? "Could not ingest.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not ingest.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-zinc-500">Paste a blog / article URL. The page is fetched, stripped to text, chunked and classified like any upload. It stays unsanitized (out of retrieval) until you review it in Library.</p>
+      <input className={field} placeholder="https://example.com/post" value={url} onChange={(e) => setUrl(e.target.value)} />
+      <input className={field} placeholder="Title (optional — defaults to the page title)" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <div className="grid grid-cols-2 gap-2">
+        <select className={field} value={docKind} onChange={(e) => setDocKind(e.target.value)}>
+          {DOC_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+        <select className={field} value={vertical} onChange={(e) => setVertical(e.target.value)}>
+          {VERTICALS.map((k) => <option key={k} value={k}>vertical: {k}</option>)}
+        </select>
+      </div>
+      <button className={btn} disabled={busy || !url.trim()} onClick={save}>{busy ? "Fetching…" : "Ingest link"}</button>
+      {msg && <p className="text-sm text-zinc-400">{msg}</p>}
     </div>
   );
 }

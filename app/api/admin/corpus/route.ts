@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ingestDocument } from "@/lib/corpus/pipeline";
 import { isVertical } from "@/lib/corpus/vertical";
+import { htmlToText, htmlTitle } from "@/lib/utils/html-to-text";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -38,18 +39,55 @@ export async function POST(request: Request) {
 
   const contentType = request.headers.get("content-type") ?? "";
 
-  // ── Quick-add note (json) ──────────────────────────────────────────────────
+  // ── Quick-add note / link (json) ────────────────────────────────────────────
   if (contentType.includes("application/json")) {
     const body = await request.json() as {
-      noteText?: string; deal_type?: string; vertical?: string; title?: string;
+      noteText?: string; url?: string; doc_kind?: string;
+      deal_type?: string; vertical?: string; title?: string;
     };
+    const vertical = isVertical(body.vertical) ? body.vertical : "creator";
+
+    // Blog / article link: fetch, strip to text, run the normal chunk+classify pipeline.
+    const url = body.url?.trim();
+    if (url) {
+      let parsed: URL;
+      try { parsed = new URL(url); } catch { return NextResponse.json({ error: "invalid url" }, { status: 400 }); }
+      if (!/^https?:$/.test(parsed.protocol)) return NextResponse.json({ error: "url must be http(s)" }, { status: 400 });
+      let html: string;
+      try {
+        const res = await fetch(parsed, { redirect: "follow", signal: AbortSignal.timeout(20_000) });
+        if (!res.ok) return NextResponse.json({ error: `fetch failed: ${res.status}` }, { status: 422 });
+        html = (await res.text()).slice(0, 2_000_000); // ponytail: cap at 2MB of HTML
+      } catch (e) {
+        return NextResponse.json({ error: `fetch error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 422 });
+      }
+      const text = htmlToText(html);
+      if (text.length < 40) return NextResponse.json({ error: "no readable text at url" }, { status: 422 });
+      const doc_kind = DOC_KINDS.includes(body.doc_kind ?? "") ? body.doc_kind! : "clause_note";
+      const result = await ingestDocument({
+        uploaded_by: user.id,
+        doc_kind,
+        deal_type: DEAL_TYPES.includes(body.deal_type ?? "") ? body.deal_type! : "other",
+        vertical,
+        title: body.title?.trim() || htmlTitle(html) || parsed.hostname,
+        source_note: url,
+        file: {
+          buffer: Buffer.from(text, "utf8"),
+          fileName: "link.txt",
+          mimeType: "text/plain",
+          storageKey: `${randomUUID()}/link.txt`,
+        },
+      });
+      return NextResponse.json(result, { status: result.status === "failed" ? 422 : 201 });
+    }
+
     const noteText = body.noteText?.trim();
-    if (!noteText) return NextResponse.json({ error: "noteText required" }, { status: 400 });
+    if (!noteText) return NextResponse.json({ error: "noteText or url required" }, { status: 400 });
     const result = await ingestDocument({
       uploaded_by: user.id,
       doc_kind: "founder_annotation",
       deal_type: DEAL_TYPES.includes(body.deal_type ?? "") ? body.deal_type! : "other",
-      vertical: isVertical(body.vertical) ? body.vertical : "creator",
+      vertical,
       title: body.title?.trim() || null,
       founder_note: null,
       noteText,
