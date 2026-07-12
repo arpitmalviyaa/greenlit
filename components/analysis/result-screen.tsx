@@ -26,6 +26,19 @@ export interface ResultIssue {
   rewrite?: string;
 }
 
+// Client-safe mirror of lib/corpus/compliance.ts ComplianceFinding (that module
+// is server-only; this is the wire shape the counsel APIs return).
+export interface StatutoryFinding {
+  issue: string;
+  severity: "low" | "medium" | "high" | "critical";
+  statute_citation: string;
+  section_ref: string | null;
+  explanation: string;
+  suggested_fix: string | null;
+  confidence: number;
+  citations: { chunk_id: string; citation: string | null; section_ref: string | null; source_url: string | null }[];
+}
+
 export interface ResultData {
   verdict: Verdict;
   summary: string;
@@ -34,6 +47,8 @@ export interface ResultData {
   standardTerms: string[];
   confidenceNote?: string;
   jurisdictionNote?: string;
+  /** Grounded statutory-check findings (flag-gated; absent = feature off / nothing found) */
+  statutory?: StatutoryFinding[];
   /** Optional extra element rendered prominently under the verdict band (e.g. certificate button) */
   hero?: React.ReactNode;
 }
@@ -220,6 +235,51 @@ export function ResultScreen({ data }: { data: ResultData }) {
           {data.reviewing.map((issue, i) => (
             <ReviewRow key={i} issue={issue} />
           ))}
+        </section>
+      )}
+
+      {/* 3.5 — Statutory check (grounded compliance findings, flag-gated) */}
+      {data.statutory && data.statutory.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Statutory check
+          </h2>
+          {data.statutory.map((f, i) => (
+            <div key={i} className="border border-gray-200 rounded-lg bg-white p-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium text-gray-900">{f.issue}</p>
+                <span className={cn("shrink-0 rounded px-2 py-0.5 text-xs font-medium", SEVERITY_TAG[f.severity])}>
+                  {SEVERITY_LABEL[f.severity]}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">{f.explanation}</p>
+              {f.suggested_fix && (
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">Suggested fix: </span>{f.suggested_fix}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                {f.citations.map((c, j) => {
+                  const label = [c.citation ?? f.statute_citation, c.section_ref].filter(Boolean).join(", ");
+                  return (
+                    <span key={j}>
+                      {j > 0 && " · "}
+                      {c.source_url ? (
+                        <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-700">
+                          {label}
+                        </a>
+                      ) : (
+                        label
+                      )}
+                    </span>
+                  );
+                })}
+              </p>
+            </div>
+          ))}
+          <p className="text-xs text-gray-400">
+            Checked against the statutory knowledge base — every finding cites its source provision.
+          </p>
         </section>
       )}
 

@@ -4,6 +4,7 @@ import { MODELS } from "@/lib/anthropic/utils";
 import { AIOutputError, callStructured } from "@/lib/anthropic/structured";
 import { RED_FLAGS_SYSTEM, RedFlagsSchema, redFlagsUser } from "@/lib/anthropic/prompts/red-flags";
 import { houseKnowledge } from "@/lib/corpus/retrieve";
+import { complianceCheck } from "@/lib/corpus/compliance";
 import { isVertical } from "@/lib/corpus/vertical";
 
 export async function POST(request: Request) {
@@ -58,7 +59,14 @@ export async function POST(request: Request) {
       schema: RedFlagsSchema,
       toolName: "report_red_flags",
     });
-    return NextResponse.json({ flags: result.flags }, { status: 200 });
+    // Grounded statutory check — additive, flag-gated, never blocks the scan.
+    const compliance = await complianceCheck({
+      text: clauseJson,
+      vertical,
+      feature: "counsel.redflags",
+      contractId: contract_id,
+    });
+    return NextResponse.json({ flags: result.flags, compliance }, { status: 200 });
   } catch (err) {
     if (err instanceof AIOutputError) {
       return NextResponse.json(

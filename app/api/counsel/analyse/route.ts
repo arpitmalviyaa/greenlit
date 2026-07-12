@@ -12,6 +12,7 @@ import {
 } from "@/lib/anthropic/prompts/contract-analyse";
 import { getRelevantCorpus, formatCorpusForPrompt } from "@/lib/corpus/index";
 import { houseKnowledge } from "@/lib/corpus/retrieve";
+import { complianceCheck } from "@/lib/corpus/compliance";
 import { isVertical } from "@/lib/corpus/vertical";
 
 function safeParse<T>(text: string): T | null {
@@ -152,5 +153,13 @@ export async function POST(request: Request) {
     console.error("DB update failed:", updateError.message);
   }
 
-  return NextResponse.json({ analysis }, { status: 200 });
+  // Grounded statutory check — additive, flag-gated, never blocks the analysis.
+  const compliance = await complianceCheck({
+    text: contract.raw_text,
+    vertical,
+    feature: "counsel.analyse",
+    contractId: contract_id,
+  });
+
+  return NextResponse.json({ analysis, compliance }, { status: 200 });
 }

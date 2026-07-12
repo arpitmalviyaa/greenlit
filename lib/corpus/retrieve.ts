@@ -24,11 +24,17 @@ export interface CorpusHit {
   stance: CorpusStance;
   deal_type: string;
   doc_kind: string;
+  citation: string | null;      // "Consumer Protection Act, 2019"
+  section_ref: string | null;   // "s.2(28)"
+  source_url: string | null;    // official source (doc-level)
+  authority_weight: number;     // 1.0 acts … 0.5 house knowledge
 }
 
 export interface CorpusFilters {
   deal_type?: string;
   clause_type?: string;
+  // Restrict to specific doc kinds (e.g. AUTHORITY_KINDS for statutory retrieval).
+  kinds?: readonly string[];
   // Which vertical is analysing. Omitted → 'creator' (safe default: an
   // un-threaded caller can never leak startup/litigation chunks).
   vertical?: Vertical;
@@ -64,16 +70,18 @@ export async function search(
     let q = supabase
       .from("corpus_chunks")
       .select(
-        "id, document_id, content, clause_type, risk_note, stance, corpus_documents!inner(deal_type, doc_kind, status)"
+        "id, document_id, content, clause_type, risk_note, stance, citation, section_ref, corpus_documents!inner(deal_type, doc_kind, status, source_url, authority_weight, superseded_by)"
       )
       .eq("status", "ready")
       .eq("corpus_documents.status", "ready")
       .eq("corpus_documents.sanitized", true)   // D: unsanitized docs never retrieved
+      .is("corpus_documents.superseded_by", null) // superseded authorities never retrieved
       .in("vertical", verticalScope(filters.vertical ?? "creator"))
       .textSearch("tsv", websearch, { type: "websearch" });
 
     if (filters.deal_type) q = q.eq("corpus_documents.deal_type", filters.deal_type);
     if (filters.clause_type) q = q.eq("clause_type", filters.clause_type);
+    if (filters.kinds?.length) q = q.in("corpus_documents.doc_kind", [...filters.kinds]);
 
     const { data, error } = await q.limit(limit);
     if (error || !data) return [];
@@ -85,7 +93,9 @@ export async function search(
       clause_type: string | null;
       risk_note: string | null;
       stance: CorpusStance;
-      corpus_documents: { deal_type: string; doc_kind: string };
+      citation: string | null;
+      section_ref: string | null;
+      corpus_documents: { deal_type: string; doc_kind: string; source_url: string | null; authority_weight: number | null };
     }>).map((r) => ({
       id: r.id,
       document_id: r.document_id,
@@ -95,10 +105,15 @@ export async function search(
       stance: r.stance,
       deal_type: r.corpus_documents.deal_type,
       doc_kind: r.corpus_documents.doc_kind,
+      citation: r.citation,
+      section_ref: r.section_ref,
+      source_url: r.corpus_documents.source_url,
+      authority_weight: Number(r.corpus_documents.authority_weight ?? 0.5),
     }));
 
-    // Rank founder-approved and dispute-source entries to the top — they carry the
-    // most signal and survive the token-cap truncation in formatForPrompt.
+    // Rank: authority weight first (acts outrank house knowledge), then stance
+    // (founder-approved and dispute-source carry the most signal) — the top
+    // entries survive the token-cap truncation in formatForPrompt.
     const weight: Record<CorpusStance, number> = {
       founder_approved: 0,
       dispute_source: 1,
@@ -106,7 +121,9 @@ export async function search(
       brand_aggressive: 2,
       market_standard: 3,
     };
-    hits.sort((a, b) => weight[a.stance] - weight[b.stance]);
+    hits.sort((a, b) =>
+      (b.authority_weight - a.authority_weight) || (weight[a.stance] - weight[b.stance])
+    );
     return hits;
   } catch {
     // Empty corpus / query failure = pipeline behaves exactly as before. No throw.

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 import { JurisdictionSelector } from "@/components/ui/jurisdiction-selector";
-import { ResultScreen, type ResultData, type ResultIssue } from "@/components/analysis/result-screen";
+import { ResultScreen, type ResultData, type ResultIssue, type StatutoryFinding } from "@/components/analysis/result-screen";
 import { analysisToResult, type AnyAnalysis } from "@/lib/utils/analysis-map";
 import { DEMO_ANALYSIS, DEMO_CONTRACT_TITLE } from "@/lib/demo-analysis";
 import { verdictFromRisk, VERDICT_CHIP, VERDICT_LABEL } from "@/lib/utils/verdict";
@@ -660,7 +660,11 @@ function ContractsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contract_id: uploadData.contract_id, jurisdiction }),
       });
-      const analyseData = await analyseRes.json() as { analysis?: AnyAnalysis; error?: string };
+      const analyseData = await analyseRes.json() as {
+        analysis?: AnyAnalysis;
+        compliance?: { status: string; findings: StatutoryFinding[] };
+        error?: string;
+      };
 
       if (!analyseRes.ok || !analyseData.analysis) {
         setError(analyseData.error ?? "The analysis could not finish. Please try again.");
@@ -668,7 +672,9 @@ function ContractsPageInner() {
         return;
       }
 
-      setActiveResult(analysisToResult(analyseData.analysis, jurisdiction));
+      const mapped = analysisToResult(analyseData.analysis, jurisdiction);
+      if (analyseData.compliance?.findings?.length) mapped.statutory = analyseData.compliance.findings;
+      setActiveResult(mapped);
       setUploadState("done");
 
       const supabase = createClient();

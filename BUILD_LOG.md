@@ -21,3 +21,18 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 - `scripts/corpus-seed.ts` — accepts an authority **manifest** (`corpus-seed.ts manifest.json`): `{path, kind, citation, jurisdiction, effective_date, issuing_body, source_url, vertical, title, authority_weight}`; relative paths resolve against the manifest dir. Folder mode unchanged.
 - Tests: `tests/corpus-chunk.test.mjs` +4 cases (section refs, sub-clause containment, rule refs, fallback, oversized-ref retention) — 9/9 pass. `tsc --noEmit` clean.
 - **No documents ingested** (deferred by design).
+
+## Stage 2 — Grounded compliance framework ✅
+- Migration `20260712020000_compliance_findings.sql` (**applied to staging**): `compliance_findings` table (issue/severity/statute_citation/section_ref/explanation/suggested_fix/confidence/`chunk_ids uuid[]`/vertical/feature; `contract_id` FK added conditionally — staging has no `contracts` table). RLS enabled, **no policies = service-role only, intentional** (findings reach clients only via the analysis API response).
+- `lib/corpus/retrieve.ts` — hits now carry `citation/section_ref/source_url/authority_weight`; new `kinds` filter; superseded authorities excluded (`superseded_by is null`); ranking = authority_weight desc, then stance (house-only retrieval unchanged: all weights 0.5).
+- `lib/corpus/compliance.ts` — `complianceCheck({text, vertical, feature, contractId})`:
+  1. retrieves authority chunks (kinds=AUTHORITY_KINDS, k=12) + house clauses (k=6), vertical-scoped, sanitized-gated;
+  2. **no authority retrieved → `no_authority_matched`, zero LLM spend**;
+  3. Haiku triage (which extracts plausibly apply) → Sonnet depth (structured findings, `cited_chunks` indexes **required min 1** in schema);
+  4. grounding contract enforced in code: findings whose citations don't resolve to the retrieved set are dropped;
+  5. persists to `compliance_findings` + provenance to `analysis_corpus_refs` (feature `compliance:<parent>`); both fire-and-forget.
+  - Never throws — always returns `{status, findings}`; parent analysis unaffected by any failure.
+- Wired into `counsel.analyse` (contract raw text) and `counsel.redflags` (clause JSON); responses gain `compliance`.
+- UI: `ResultScreen` gains a "Statutory check" section (severity tag, explanation, suggested fix, **clickable citations** via doc `source_url`); contracts page threads findings through. ResultScreen is shared by contracts + content checks, so both surfaces get it.
+- Flag: `FLAGS.complianceCheck = false` (default OFF — flag short-circuits before any retrieval/LLM call).
+- `tsc --noEmit` clean.

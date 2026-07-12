@@ -12,6 +12,10 @@ export const FLAGS = {
   legalPlaybook: false,
   crossReference: false,
   proofVault: false,
+  // Pipeline flag (not a page): grounded statutory compliance check on every
+  // analysis. OFF until the authority corpus is populated — flipping it ON with
+  // an empty corpus just returns "no authority matched" everywhere.
+  complianceCheck: false,
 } as const;
 
 export type FlagKey = keyof typeof FLAGS;
