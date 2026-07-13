@@ -10,7 +10,7 @@ either a secret, a prod-gated action, or a judgment call.
       anything ingested before the key: `npx tsx scripts/corpus-backfill-embeddings.ts`.
 - [ ] **GitHub PAT rotation** — carried over; still pending.
 
-## 2. Prod database (hard-gated migrations)
+## 2. Prod database (hard-gated migrations) — ✅ DONE 2026-07-13 (all 5 applied + service_role_function_grants fix)
 Apply IN ORDER via Supabase MCP/SQL editor against `ovjqzgzqcyowitjfwptz` on your go-ahead
 (all already proven on staging except the last, which is prod-only):
 1. `20260712010000_legal_authority_layer.sql`
@@ -24,7 +24,7 @@ Apply IN ORDER via Supabase MCP/SQL editor against `ovjqzgzqcyowitjfwptz` on you
 None are destructive: additive columns/enums/tables/indexes, function replacements, and
 one dead-policy drop (`early_access` anon INSERT — zero code paths use it).
 
-## 3. Prod deploy (hard gate)
+## 3. Prod deploy (hard gate) — ✅ DONE 2026-07-13 (https://app.getgreenlit.in)
 - [ ] `vercel deploy --prod` from the repo after the migrations above.
 - [ ] Smoke: `npm run qa:prod-flow` (existing script) + open `/master` → check the new
       Corpus / Startup analyses nav links work while signed in as platform admin.

@@ -113,3 +113,11 @@ Branch: `website-v2-editorial`. Prod Supabase: `ovjqzgzqcyowitjfwptz` ("mike-oss
 3. `vercel deploy --prod` (hard gate)
 4. Leaked-password dashboard toggle (may be plan-gated)
 5. Document ingest + sanitize + legal review, then `complianceCheck` flag flip
+
+## 2026-07-13 — PROD APPLY + DEPLOY ✅
+- Deployed `4b98220` to production first (`vercel deploy --prod`) — new code + old DB degrades gracefully (empty overview list), old code + new DB would have 500'd; then applied migrations.
+- Prod URL: **https://app.getgreenlit.in** (deployment `greenlit-mmactd6kv-anal-s-projects.vercel.app`, status Ready; smoke: / → 200, /api/public/event validates → 400 on bad body).
+- Applied to PROD in order: `legal_authority_layer`, `compliance_findings` (contracts FK attached), `finding_feedback`, `vector_search`, `security_advisor_closeout`.
+- **Post-apply catch:** `revoke … from public` on the two RPCs also stripped service_role's default grant (ACL showed `{postgres=X}` only) — would have broken /api/master/overview and silently disabled the vector leg. Fixed with `service_role_function_grants` (applied to prod + staging, added to repo as `20260713000000`). Verified by executing both RPCs AS service_role: overview → 2 rows, match → 0 rows (empty corpus, correct).
+- Advisor re-run on prod: **all WARN findings cleared** except `auth_leaked_password_protection` (dashboard toggle — manual). Remaining are 4 INFO `rls_enabled_no_policy` notices, all intentional service-role-only tables (analytics_events, scope_items, compliance_findings, finding_feedback).
+- `complianceCheck` flag: still **OFF** (untouched, per instruction).
