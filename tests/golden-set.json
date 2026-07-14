@@ -2,6 +2,38 @@
   {
     "skip": true,
     "query": "EXAMPLE — brand may use creator content perpetually across all media",
-    "expect_citations": ["Consumer Protection Act, 2019"]
+    "expect_citations": [
+      "Consumer Protection Act, 2019"
+    ]
+  },
+  {
+    "query": "influencer must disclose paid partnership material connection in advertisement",
+    "expect_citations": [
+      "ASCI"
+    ]
+  },
+  {
+    "query": "penalty for misleading advertisement and false endorsement by endorser",
+    "expect_citations": [
+      "Consumer Protection Act, 2019"
+    ]
+  },
+  {
+    "query": "consent required for processing digital personal data",
+    "expect_citations": [
+      "Digital Personal Data Protection"
+    ]
+  },
+  {
+    "query": "advertisement and promotion of online money gaming service prohibited",
+    "expect_citations": [
+      "Online Gaming"
+    ]
+  },
+  {
+    "query": "agreement in restraint of trade or profession is void",
+    "expect_citations": [
+      "Indian Contract Act"
+    ]
   }
 ]

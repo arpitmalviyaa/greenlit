@@ -38,15 +38,27 @@ async function extractPdf(buffer: Buffer): Promise<{ text: string; html?: string
   try {
     // Dynamic import avoids Next.js edge runtime issues
     const pdfModule = await import("pdf-parse");
-    // pdf-parse exports differ between CJS and ESM builds
     type PdfFn = (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string; numpages?: number }>;
-    const pdfParse = ((pdfModule as unknown as { default: PdfFn }).default ?? pdfModule) as PdfFn;
-    const result = await pdfParse(buffer, { max: 0 });
-    const text = result.text?.trim() ?? "";
+    type PdfV2 = new (opts: { data: Uint8Array }) => { getText(): Promise<{ text: string; total?: number }> };
+    const mod = ((pdfModule as { default?: unknown }).default ?? pdfModule) as Record<string, unknown>;
+    let text = "";
+    let numpages: number | undefined;
+    const PDFParse = (mod.PDFParse ?? (pdfModule as Record<string, unknown>).PDFParse) as PdfV2 | undefined;
+    if (PDFParse) {
+      // pdf-parse >=2: class API
+      const result = await new PDFParse({ data: new Uint8Array(buffer) }).getText();
+      text = result.text?.trim() ?? "";
+      numpages = result.total;
+    } else {
+      // pdf-parse 1.x: callable module
+      const result = await (mod as unknown as PdfFn)(buffer, { max: 0 });
+      text = result.text?.trim() ?? "";
+      numpages = result.numpages;
+    }
     if (text) return { text };
     // No embedded text → scanned PDF. Fall back to Claude vision (page-capped).
     const { transcribeScannedPdf } = await import("./vision-extract.ts");
-    return transcribeScannedPdf(buffer, result.numpages);
+    return transcribeScannedPdf(buffer, numpages);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "PDF parsing failed";
     return { text: "", error: msg };
