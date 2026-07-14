@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SocialAuth, OrDivider } from "@/components/auth/social-auth";
-import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY } from "@/lib/ui/auth";
+import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_NOTICE, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -106,10 +106,10 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           {notice && !error && (
-            <div className="rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white">{notice}</div>
+            <div className={AUTH_NOTICE}>{notice}</div>
           )}
           {error && (
-            <div className="rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white">
+            <div className={AUTH_ERROR}>
               {error}
               {showResend && (
                 <div className="mt-2">

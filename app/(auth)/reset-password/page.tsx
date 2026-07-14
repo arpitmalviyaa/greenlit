@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY } from "@/lib/ui/auth";
+import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
       <p className="mt-1.5 text-sm text-zinc-500">Choose a new password for your account.</p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         {error && (
-          <div className="rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white">
+          <div className={AUTH_ERROR}>
             {error}
             {ready && /expired|invalid/.test(error) && (
               <div className="mt-2">

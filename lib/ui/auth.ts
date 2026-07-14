@@ -10,6 +10,12 @@ export const AUTH_FIELD =
 
 export const AUTH_LABEL = "text-sm text-zinc-400";
 
+// Neutral info banner (e.g. "email confirmed, sign in below").
+export const AUTH_NOTICE = "rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white";
+
+// Error banner — visually distinct (red) so a failed login doesn't read as "nothing happened".
+export const AUTH_ERROR = "rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300";
+
 // Primary action — white on black.
 export const AUTH_BTN_PRIMARY =
   "flex h-11 w-full items-center justify-center rounded-lg bg-white text-sm font-medium text-black transition-colors hover:bg-zinc-200 disabled:opacity-50";

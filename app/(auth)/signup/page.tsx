@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
 import { SocialAuth, OrDivider } from "@/components/auth/social-auth";
-import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY } from "@/lib/ui/auth";
+import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function SignupPage() {
   const [step, setStep] = useState<"account" | "verify">("account");
@@ -109,7 +109,7 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-white/15 px-3.5 py-2.5 text-sm text-white">{error}</div>
+            <div className={AUTH_ERROR}>{error}</div>
           )}
           <div className="space-y-1.5">
             <label htmlFor="name" className={AUTH_LABEL}>Your name</label>
