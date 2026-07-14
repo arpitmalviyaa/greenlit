@@ -33,3 +33,6 @@ supabase/.temp/
 .claude/
 
 .gstack/
+
+# Local KB source PDFs (ingested into Supabase; not part of the app bundle)
+knowledge-base/
