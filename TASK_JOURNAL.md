@@ -520,3 +520,10 @@
 - Conclusion: password reset is not currently failing. The former failure was link corruption, not an absent Resend client integration. Resend is configured as Supabase Auth's SMTP provider in the dashboard, so application code does not call the Resend API directly.
 - Files already containing the fix: `app/auth/confirm/[type]/[token]/route.ts`, `app/(auth)/forgot-password/page.tsx`, `app/(auth)/reset-password/page.tsx`. No source modification was required.
 - Dashboard state already contains the required fix. No dashboard mutation was made.
+
+### Task 3: Authentication review and automated coverage
+
+- Verified signup, password login, logout, browser token refresh, session-cookie expiry behavior, forgot-password, recovery-link verification, password update, post-reset logout, and server-side dashboard protection.
+- Added `tests/auth-flows.test.mjs` as a dependency-free contract test over the actual auth entry points.
+- Added `npm run test:auth`, which also runs the executable session-cookie checks in `tests/session-cookies.test.mjs`.
+- Live Supabase configuration independently confirmed a 3600-second JWT lifetime, refresh-token rotation enabled, and a 10-second reuse interval. The automated suite checks the application half of that contract without requiring production credentials.

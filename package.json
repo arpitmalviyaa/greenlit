@@ -16,6 +16,7 @@
     "test:integration": "npm run test:phase26-28 && npm run test:phase29-30",
     "test:e2e:live": "node scripts/live-functionality-audit.mjs",
     "test:backend-audit": "node --test tests/backend-audit.test.mjs",
+    "test:auth": "node --test tests/auth-flows.test.mjs && npx --no-install tsx tests/session-cookies.test.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "migration:audit": "node scripts/migration-audit.mjs",
     "supabase:audit": "node scripts/supabase-audit.mjs",
