@@ -56,6 +56,11 @@ for (const control of ["content-length", "checkRateLimit", "sanitizeMeta"]) {
   if (!publicEvent.includes(control)) issues.push(`public analytics endpoint missing ${control}`);
 }
 
+const corpusAdmin = readFileSync("app/api/admin/corpus/route.ts", "utf8");
+if (!corpusAdmin.includes("GREENLIT_CORPUS_URL_HOSTS") || !corpusAdmin.includes('redirect: "error"')) {
+  issues.push("corpus URL ingestion must use an explicit host allowlist and reject redirects");
+}
+
 if (issues.length) {
   console.error("Security audit failed:");
   for (const issue of issues) console.error(`- ${issue}`);

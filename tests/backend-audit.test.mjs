@@ -83,6 +83,13 @@ test("proof upload validates resource ownership before storage or service-role i
   assert.match(source, /remove\(\[file_path\]\)/);
 });
 
+test("corpus URL ingestion is restricted to configured hosts and rejects redirects", () => {
+  const source = readFileSync("app/api/admin/corpus/route.ts", "utf8");
+  assert.match(source, /GREENLIT_CORPUS_URL_HOSTS/);
+  assert.match(source, /isAllowedCorpusHost\(parsed\.hostname\)/);
+  assert.match(source, /redirect: "error"/);
+});
+
 function walk(dir) {
   const out = [];
   for (const name of readdirSync(dir)) {

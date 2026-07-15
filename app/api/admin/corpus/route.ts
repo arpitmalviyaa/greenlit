@@ -58,9 +58,14 @@ export async function POST(request: Request) {
       let parsed: URL;
       try { parsed = new URL(url); } catch { return NextResponse.json({ error: "invalid url" }, { status: 400 }); }
       if (!/^https?:$/.test(parsed.protocol)) return NextResponse.json({ error: "url must be http(s)" }, { status: 400 });
+      if (parsed.username || parsed.password || !isAllowedCorpusHost(parsed.hostname)) {
+        return NextResponse.json({ error: "url host is not approved" }, { status: 400 });
+      }
       let html: string;
       try {
-        const res = await fetch(parsed, { redirect: "follow", signal: AbortSignal.timeout(20_000) });
+        // Redirects are rejected so an approved public host cannot bounce the
+        // server to a private or link-local address.
+        const res = await fetch(parsed, { redirect: "error", signal: AbortSignal.timeout(20_000) });
         if (!res.ok) return NextResponse.json({ error: `fetch failed: ${res.status}` }, { status: 422 });
         html = (await res.text()).slice(0, 2_000_000); // ponytail: cap at 2MB of HTML
       } catch {
@@ -141,4 +146,12 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(result, { status: result.status === "failed" ? 422 : 201 });
+}
+
+function isAllowedCorpusHost(hostname: string): boolean {
+  const allowed = (process.env.GREENLIT_CORPUS_URL_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(hostname.toLowerCase());
 }
