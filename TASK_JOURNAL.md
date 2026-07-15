@@ -498,3 +498,14 @@
   - Main was not pushed because the push was blocked by token scope, not by tests or code readiness.
   - Live deploy was not performed because strict `npm run env:check` failed due to missing production secrets.
 - Final status: code/docs/migrations are GA-ready as far as local verification can prove; live deployment is NO-GO pending production secrets and a GitHub token with `workflow` scope if `.github/workflows/ga.yml` must land on `main`.
+
+## Week 0 - Greenlit Stabilization - 2026-07-15
+
+### Task 1: Repository safety
+
+- Read the tracked repository inventory and the root project instructions before changing files.
+- Verified branch: `website-v2-editorial`.
+- Verified remote: `origin` points to the Greenlit GitHub repository.
+- Verified starting state: clean worktree, local HEAD `89d8656`, exactly matched `origin/website-v2-editorial`.
+- Verified GitHub authentication has `repo` and `workflow` scopes, so CI workflow files can be pushed without exposing the token.
+- No secrets or ignored local environment files were staged.
