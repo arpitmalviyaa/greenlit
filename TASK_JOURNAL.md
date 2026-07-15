@@ -559,3 +559,10 @@
 
 - Added `docs/WEEK0_REPORT.md` with completed work, manual steps, risks, recommendations, validation evidence, and next actions.
 - Report explicitly stops at Week 0 stabilization. No Month 1 work, feature work, or UI redesign was started.
+
+### Task 8: Push and remote verification
+
+- Pushed all Week 0 commits to `origin/website-v2-editorial` without force-push.
+- Final code-bearing GitHub Actions run `29418110114` passed both jobs: Gitleaks in 9 seconds and the full verify pipeline in 1 minute 1 second.
+- GitHub Dependabot configuration validation passed.
+- Noted the non-blocking GitHub warning that the pinned action versions target the deprecated Node 20 action runtime and are being forced onto Node 24. Update pins when Node 24-native action releases are available.

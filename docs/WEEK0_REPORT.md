@@ -4,7 +4,7 @@ Date: 2026-07-15
 
 Branch: `website-v2-editorial`
 
-Status: Code-complete, pending listed dashboard hardening and post-push CI confirmation
+Status: Code-complete and pushed; listed dashboard hardening remains manual
 
 ## Completed
 
@@ -14,6 +14,7 @@ Status: Code-complete, pending listed dashboard hardening and post-push CI confi
 - Confirmed the GitHub remote and an authenticated token with `repo` and `workflow` scopes.
 - Kept `.env.local`, provider credentials, and local tool state ignored and unstaged.
 - Made one commit per logical task and recorded the work in `TASK_JOURNAL.md`.
+- Pushed `website-v2-editorial` to GitHub through commit `4440d7f`.
 
 ### Password reset investigation
 
@@ -73,6 +74,7 @@ Status: Code-complete, pending listed dashboard hardening and post-push CI confi
 - `npm audit --audit-level=high`: 0 vulnerabilities.
 - `npm run smoke`: passed locally and against production in read-only mode.
 - `npm run build`: passed on Next.js 16.2.9, 105 pages generated.
+- GitHub Actions run `29418110114`: `gitleaks` and `verify` both passed. The verify job completed clean install, audit, lint, type-check, all tests, security scan, smoke tests, and production build in 1 minute 1 second.
 
 ## Manual steps remaining
 
@@ -103,6 +105,7 @@ No Resend dashboard change is currently required. If delivery regresses, check S
 
 - `main` is not branch-protected yet.
 - The new GitHub Actions workflow must complete once after push before it can be treated as a reliable required check.
+- GitHub warns that the pinned checkout/setup/Gitleaks action versions still target the deprecated Node 20 action runtime and are currently forced onto Node 24. The jobs pass, but update the pinned actions when their maintainers publish Node 24-native releases.
 - The repository's static audits verify migration intent. Continue comparing Supabase live advisors after future schema changes.
 
 ## Recommendations
@@ -115,9 +118,8 @@ No Resend dashboard change is currently required. If delivery regresses, check S
 
 ## Next actions
 
-1. Push `website-v2-editorial` and confirm both GitHub Actions jobs pass.
-2. Apply the six manual dashboard/security steps above.
-3. Re-run `npm run test:auth`, `SMOKE_BASE_URL=https://app.getgreenlit.in npm run smoke`, and inspect Supabase Auth/security logs.
-4. Begin the stable validation period. Collect failures; do not add features or redesign UI during this phase.
+1. Apply the six manual dashboard/security steps above.
+2. Re-run `npm run test:auth`, `SMOKE_BASE_URL=https://app.getgreenlit.in npm run smoke`, and inspect Supabase Auth/security logs after those policy changes.
+3. Begin the stable validation period. Collect failures; do not add features or redesign UI during this phase.
 
 Week 0 stops here. Month 1 work has not started.
