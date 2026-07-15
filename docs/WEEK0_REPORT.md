@@ -50,6 +50,7 @@ Status: Code-complete, pending listed dashboard hardening and post-push CI confi
 - Added `.github/dependabot.yml` for weekly npm and GitHub Actions updates.
 - Enabled GitHub Dependabot vulnerability alerts and automated security updates.
 - The first CI run caught cross-platform package-lock drift at `npm ci`; the lockfile was normalized with npm 11.6.2, its two already-required optional WASM peer packages were made explicit, and a clean local install then passed with zero vulnerabilities.
+- The second run caught an undeclared `tsx` test-runner assumption after all preceding checks passed. The auth check now uses Node 24's native TypeScript execution for the one small cookie module, with no new runner dependency.
 
 ### Smoke tests
 

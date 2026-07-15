@@ -546,6 +546,8 @@
 - Enabled GitHub Dependabot vulnerability alerts and automated security updates through the repository API. Existing GitHub secret scanning and push protection remain enabled.
 - First pushed CI run `29417908927`: Gitleaks passed; verify correctly failed at `npm ci` because npm 11 found two missing optional-package entries in the lockfile.
 - Normalized `package-lock.json` with npm 11.6.2 and declared the two already-required optional WASM peer packages so Linux and macOS resolve the same clean-install graph. `npm ci --ignore-scripts` now succeeds with 0 vulnerabilities.
+- Second pushed CI run `29418031582`: Gitleaks, clean install, npm audit, lint, and type-check passed. Auth source tests passed 8/8, then the session-cookie check failed only because the script relied on an undeclared `tsx` executable.
+- Removed that undeclared tool assumption. Node 24 runs the small TypeScript cookie module directly, so `test:auth` now uses the standard runtime with no added test dependency.
 
 ### Task 6: Smoke tests
 
