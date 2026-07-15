@@ -66,15 +66,19 @@ function checkScriptsAndCi() {
   ]) {
     if (!pkg.scripts?.[script]) issues.push(`package.json missing ${script}`);
   }
-  const ga = ".github/workflows/ga.yml";
-  if (!existsSync(ga)) {
-    issues.push(`${ga} missing`);
+  const ci = ".github/workflows/ci.yml";
+  if (!existsSync(ci)) {
+    issues.push(`${ci} missing`);
   } else {
-    const contents = read(ga);
-    for (const job of ["lint", "typecheck", "unit", "integration", "phase-tests", "dependency-audit", "build", "smoke-tests", "release-verification"]) {
-      if (!contents.includes(`${job}:`)) issues.push(`${ga} missing job ${job}`);
+    const contents = read(ci);
+    for (const command of [
+      "npm ci", "npm audit --audit-level=high", "npm run lint", "npm run type-check",
+      "npm run test:auth", "npm run test:backend-audit", "npm run test:phases",
+      "npm run security:audit", "npm run smoke", "npm run build",
+    ]) {
+      if (!contents.includes(command)) issues.push(`${ci} missing ${command}`);
     }
-    if (!contents.includes("npm run verify:release")) issues.push(`${ga} must run npm run verify:release`);
+    if (!contents.includes("gitleaks/gitleaks-action@")) issues.push(`${ci} missing Gitleaks scanning`);
   }
   if (existsSync(".github/workflows/rc1.yml")) issues.push("obsolete RC1 workflow must be removed");
 }

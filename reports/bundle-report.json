@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-29T20:23:19.941Z",
-  "route_count": 93,
+  "generated_at": "2026-07-15T17:15:30.624Z",
+  "route_count": 121,
   "largest_routes": [
     {
       "route": "/_app",
@@ -10,8 +10,16 @@
   ],
   "app_routes": [
     {
+      "source": "/(auth)/forgot-password/page",
+      "route": "/forgot-password"
+    },
+    {
       "source": "/(auth)/login/page",
       "route": "/login"
+    },
+    {
+      "source": "/(auth)/reset-password/page",
+      "route": "/reset-password"
     },
     {
       "source": "/(auth)/signup/page",
@@ -22,8 +30,12 @@
       "route": "/agency/approvals"
     },
     {
-      "source": "/(dashboard)/agency/counsel/page",
-      "route": "/agency/counsel"
+      "source": "/(dashboard)/agency/content-check/page",
+      "route": "/agency/content-check"
+    },
+    {
+      "source": "/(dashboard)/agency/contracts/page",
+      "route": "/agency/contracts"
     },
     {
       "source": "/(dashboard)/agency/cross-reference/page",
@@ -62,6 +74,10 @@
       "route": "/agency/send-scanner"
     },
     {
+      "source": "/(dashboard)/agency/settings/page",
+      "route": "/agency/settings"
+    },
+    {
       "source": "/(dashboard)/agency/term-sheets/page",
       "route": "/agency/term-sheets"
     },
@@ -72,6 +88,14 @@
     {
       "source": "/(dashboard)/brand/page",
       "route": "/brand"
+    },
+    {
+      "source": "/(dashboard)/creator/deals/page",
+      "route": "/creator/deals"
+    },
+    {
+      "source": "/(dashboard)/creator/history/page",
+      "route": "/creator/history"
     },
     {
       "source": "/(dashboard)/creator/page",
@@ -90,8 +114,44 @@
       "route": "/_not-found"
     },
     {
-      "source": "/agency/onboarding/page",
-      "route": "/agency/onboarding"
+      "source": "/admin/corpus/page",
+      "route": "/admin/corpus"
+    },
+    {
+      "source": "/admin/startup/page",
+      "route": "/admin/startup"
+    },
+    {
+      "source": "/agencies/page",
+      "route": "/agencies"
+    },
+    {
+      "source": "/api/admin/corpus/[id]/route",
+      "route": "/api/admin/corpus/[id]"
+    },
+    {
+      "source": "/api/admin/corpus/chunk/[id]/route",
+      "route": "/api/admin/corpus/chunk/[id]"
+    },
+    {
+      "source": "/api/admin/corpus/route",
+      "route": "/api/admin/corpus"
+    },
+    {
+      "source": "/api/admin/startup/[id]/export/route",
+      "route": "/api/admin/startup/[id]/export"
+    },
+    {
+      "source": "/api/admin/startup/[id]/route",
+      "route": "/api/admin/startup/[id]"
+    },
+    {
+      "source": "/api/admin/startup/doc/[id]/route",
+      "route": "/api/admin/startup/doc/[id]"
+    },
+    {
+      "source": "/api/admin/startup/route",
+      "route": "/api/admin/startup"
     },
     {
       "source": "/api/approvals/list/route",
@@ -136,6 +196,14 @@
     {
       "source": "/api/clauses/library/route",
       "route": "/api/clauses/library"
+    },
+    {
+      "source": "/api/compliance/feedback/route",
+      "route": "/api/compliance/feedback"
+    },
+    {
+      "source": "/api/content/check/route",
+      "route": "/api/content/check"
     },
     {
       "source": "/api/counsel/analyse/route",
@@ -274,6 +342,14 @@
       "route": "/api/proof/upload"
     },
     {
+      "source": "/api/public/event/route",
+      "route": "/api/public/event"
+    },
+    {
+      "source": "/api/public/live-check/route",
+      "route": "/api/public/live-check"
+    },
+    {
       "source": "/api/ready/route",
       "route": "/api/ready"
     },
@@ -370,8 +446,36 @@
       "route": "/auth/callback"
     },
     {
+      "source": "/auth/confirm/[type]/[token]/route",
+      "route": "/auth/confirm/[type]/[token]"
+    },
+    {
+      "source": "/auth/confirm/route",
+      "route": "/auth/confirm"
+    },
+    {
+      "source": "/certificate/[scan_id]/page",
+      "route": "/certificate/[scan_id]"
+    },
+    {
+      "source": "/check/page",
+      "route": "/check"
+    },
+    {
+      "source": "/creators/page",
+      "route": "/creators"
+    },
+    {
       "source": "/master/page",
       "route": "/master"
+    },
+    {
+      "source": "/onboarding/page",
+      "route": "/onboarding"
+    },
+    {
+      "source": "/opengraph-image/route",
+      "route": "/opengraph-image"
     },
     {
       "source": "/page",
@@ -380,21 +484,25 @@
     {
       "source": "/pricing/page",
       "route": "/pricing"
+    },
+    {
+      "source": "/security/page",
+      "route": "/security"
     }
   ],
-  "static_js_bytes": 1136727,
+  "static_js_bytes": 1292704,
   "largest_static_chunks": [
     {
-      "path": ".next/static/chunks/15e9jcvs8jln3.js",
-      "bytes": 241374
+      "path": ".next/static/chunks/0x_9zxrad2e0p.js",
+      "bytes": 241978
     },
     {
-      "path": ".next/static/chunks/2nykiepra7i1k.js",
-      "bytes": 227537
+      "path": ".next/static/chunks/3j9pm5otqxm82.js",
+      "bytes": 226355
     },
     {
-      "path": ".next/static/chunks/0_bdivyfur2bb.js",
-      "bytes": 138007
+      "path": ".next/static/chunks/0vc5ll91764mx.js",
+      "bytes": 141596
     },
     {
       "path": ".next/static/chunks/0cz1d0mv5g_q7.js",
@@ -409,60 +517,60 @@
       "bytes": 44414
     },
     {
-      "path": ".next/static/chunks/2hcq1h5h21ls3.js",
-      "bytes": 41717
+      "path": ".next/static/chunks/02-j6v3-_3vpp.js",
+      "bytes": 42720
     },
     {
-      "path": ".next/static/chunks/09s72r58ijxwx.js",
-      "bytes": 30836
+      "path": ".next/static/chunks/2eq57_2qoub3u.js",
+      "bytes": 33679
     },
     {
-      "path": ".next/static/chunks/2-lzghqjv_75g.js",
-      "bytes": 27397
+      "path": ".next/static/chunks/1qrrd8yus1fs_.js",
+      "bytes": 31397
     },
     {
-      "path": ".next/static/chunks/2wpxuk7102b7i.js",
-      "bytes": 22482
+      "path": ".next/static/chunks/1-ch0x2l484rj.js",
+      "bytes": 30458
     },
     {
-      "path": ".next/static/chunks/36doft7r5c1o9.js",
-      "bytes": 20484
+      "path": ".next/static/chunks/0zrcyrhfmzxf6.js",
+      "bytes": 27445
     },
     {
-      "path": ".next/static/chunks/0y5kxyhf41hzs.js",
-      "bytes": 17543
+      "path": ".next/static/chunks/3rjswcobiq1ye.js",
+      "bytes": 27364
     },
     {
-      "path": ".next/static/chunks/09bth34dfnpg1.js",
-      "bytes": 15261
+      "path": ".next/static/chunks/1f5xalwu59yfh.js",
+      "bytes": 24469
     },
     {
-      "path": ".next/static/chunks/1s8j3qyq7rbga.js",
-      "bytes": 14750
+      "path": ".next/static/chunks/2wmrja6bfvcs1.js",
+      "bytes": 23386
     },
     {
-      "path": ".next/static/chunks/08u8qpjmft3u9.js",
-      "bytes": 11928
+      "path": ".next/static/chunks/3b_uyy32o60il.js",
+      "bytes": 23141
     },
     {
-      "path": ".next/static/chunks/42nfitet8a-n3.js",
-      "bytes": 11381
+      "path": ".next/static/chunks/398fa2nwty9vc.js",
+      "bytes": 19660
     },
     {
-      "path": ".next/static/chunks/2urd-ir9i_iej.js",
-      "bytes": 11251
+      "path": ".next/static/chunks/3isxao9olszsg.js",
+      "bytes": 18119
     },
     {
-      "path": ".next/static/chunks/1xplrkaja8mz5.js",
-      "bytes": 11087
+      "path": ".next/static/chunks/1j0sgkf3ds968.js",
+      "bytes": 16727
     },
     {
-      "path": ".next/static/chunks/2lo6cuvbql297.js",
-      "bytes": 10908
+      "path": ".next/static/chunks/1dng6nlamribk.js",
+      "bytes": 16348
     },
     {
-      "path": ".next/static/chunks/0m_1dvhcfw7i_.js",
-      "bytes": 10760
+      "path": ".next/static/chunks/0ei8ebgqj5iwv.js",
+      "bytes": 12863
     }
   ],
   "shared_asset_count": 0,

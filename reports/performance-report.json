@@ -1,46 +1,46 @@
 {
-  "generated_at": "2026-06-29T20:23:23.417Z",
+  "generated_at": "2026-07-15T17:15:34.032Z",
   "environment": "local-ci",
   "results": [
     {
       "name": "cold boot env validation",
-      "duration_ms": 183,
+      "duration_ms": 174,
       "budget_ms": 1500,
       "status": 0
     },
     {
       "name": "release audit latency",
-      "duration_ms": 183,
+      "duration_ms": 175,
       "budget_ms": 1500,
       "status": 0
     },
     {
       "name": "migration audit latency",
-      "duration_ms": 209,
+      "duration_ms": 190,
       "budget_ms": 1500,
       "status": 0
     },
     {
       "name": "supabase audit latency",
-      "duration_ms": 191,
+      "duration_ms": 188,
       "budget_ms": 1500,
       "status": 0
     },
     {
       "name": "security audit latency",
-      "duration_ms": 281,
+      "duration_ms": 295,
       "budget_ms": 2500,
       "status": 0
     },
     {
       "name": "contract upload/review local parser budget",
-      "duration_ms": 1141,
+      "duration_ms": 1128,
       "budget_ms": 10000,
       "status": 0
     },
     {
       "name": "search/dashboard projection budget",
-      "duration_ms": 920,
+      "duration_ms": 904,
       "budget_ms": 10000,
       "status": 0
     }
