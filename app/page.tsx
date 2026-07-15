@@ -11,6 +11,11 @@ export default async function RootPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
+    // Platform admins route to the master portal (consistent with /login).
+    const { data: admin } = await supabase
+      .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+    if (admin) redirect("/master");
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, onboarding_done")

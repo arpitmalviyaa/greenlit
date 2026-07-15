@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicSupabaseEnv, StartupConfigError } from "@/lib/env";
+import { toSessionCookie } from "./session-cookies";
 
 // Middleware is intentionally lightweight — only refreshes the session cookie
 // and handles the unauthenticated → /login redirect.
@@ -59,7 +60,7 @@ export async function updateSession(request: NextRequest) {
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, toSessionCookie(value, options))
           );
         },
       },
