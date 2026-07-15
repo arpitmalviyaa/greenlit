@@ -528,6 +528,14 @@
 - Added `npm run test:auth`, which also runs the executable session-cookie checks in `tests/session-cookies.test.mjs`.
 - Live Supabase configuration independently confirmed a 3600-second JWT lifetime, refresh-token rotation enabled, and a 10-second reuse interval. The automated suite checks the application half of that contract without requiring production credentials.
 
+### Task 4: Security audit
+
+- Completed source, history, dependency, API-auth, Supabase policy/storage, Auth configuration, and GitHub security-setting review.
+- Added `docs/WEEK0_SECURITY_AUDIT.md` with exploit paths, confidence, severity, exact fixes, dashboard work, passed controls, and data classification.
+- Open findings: leaked-password protection disabled (medium), database open CIDRs plus TLS enforcement disabled (medium), Auth minimum password length 6 versus UI 8 (low), and platform-admin-only URL fetch SSRF primitive (low).
+- Resolved during validation: raw provider/database errors returned to clients. Source security audit now passes across 310 files.
+- Verified zero high/critical npm advisories, private storage buckets, RLS deny-by-default service tables, signed Razorpay webhook, no tracked secrets, GitHub secret scanning, and push protection.
+
 ### Task 5: CI improvements
 
 - Added weekly Dependabot checks for npm and GitHub Actions.
