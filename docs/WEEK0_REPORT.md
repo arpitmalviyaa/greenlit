@@ -49,6 +49,7 @@ Status: Code-complete, pending listed dashboard hardening and post-push CI confi
 - All actions are pinned to full commit SHAs.
 - Added `.github/dependabot.yml` for weekly npm and GitHub Actions updates.
 - Enabled GitHub Dependabot vulnerability alerts and automated security updates.
+- The first CI run caught cross-platform package-lock drift at `npm ci`; the lockfile was normalized with npm 11.6.2, its two already-required optional WASM peer packages were made explicit, and a clean local install then passed with zero vulnerabilities.
 
 ### Smoke tests
 
@@ -60,6 +61,7 @@ Status: Code-complete, pending listed dashboard hardening and post-push CI confi
 ### Validation evidence
 
 - `npm run lint`: passed.
+- `npm ci --ignore-scripts`: passed after lockfile normalization, 501 packages installed and 0 vulnerabilities.
 - `npm run type-check`: passed.
 - `npm run test:backend-audit`: 4/4 passed.
 - `npm run test:auth`: 8/8 passed plus session-cookie assertions.

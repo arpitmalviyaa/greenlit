@@ -544,6 +544,8 @@
 - Repaired validation blockers exposed by the new pipeline: stale exact API-route count, missing recognition of the shared admin gate, six raw backend error-response paths, and the intentional ref-backed corpus graph simulation lint annotation.
 - No deployment step, production credential, or secret value was added.
 - Enabled GitHub Dependabot vulnerability alerts and automated security updates through the repository API. Existing GitHub secret scanning and push protection remain enabled.
+- First pushed CI run `29417908927`: Gitleaks passed; verify correctly failed at `npm ci` because npm 11 found two missing optional-package entries in the lockfile.
+- Normalized `package-lock.json` with npm 11.6.2 and declared the two already-required optional WASM peer packages so Linux and macOS resolve the same clean-install graph. `npm ci --ignore-scripts` now succeeds with 0 vulnerabilities.
 
 ### Task 6: Smoke tests
 
