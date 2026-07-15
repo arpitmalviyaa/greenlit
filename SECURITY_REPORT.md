@@ -8,6 +8,12 @@ Scope: repository, production configuration, restored clone `juhwnamjakmkvixxwrv
 
 ## Executive result
 
+### Week 0 completion update, 15 July 2026
+
+Code-side findings for disabled Apple UI, forced/default marketing consent, unbounded public analytics metadata, missing HSTS/sensitive cache control, callback env assertions, and admin corpus URL SSRF are remediated in local commits `1dd1274` and `67a15c3`. Focused tests, lint, type-check, security scan, dependency audit, smoke, and build pass. The consent migration was applied only to clone `juhwnamjakmkvixxwrvv`; its dry run is current.
+
+Production remains unchanged. A fresh completed production backup could not be independently verified, so the migration-history runbook was not started. Database TLS/network controls, password/leak/session settings, exact redirects, external provider/email proof, Storage backup, and monitoring remain beta-blocking.
+
 **Decision: READY FOR EXPLICITLY AUTHORIZED PRODUCTION HISTORY REPAIR; public beta remains NO-GO until the other blocking items are resolved.** The restored clone has aligned history, an empty migration dry run, 108/108 RLS coverage, passing application/Auth/build gates, and a passing 60-assertion two-tenant suite. Production was not linked or modified during validation.
 
 | Severity | Finding | Evidence | Required action |
@@ -122,7 +128,7 @@ All buckets are private: `claim-evidence`, `contracts`, `corpus`, `ip-evidence`,
 - Service-role use is broad but occurs behind server API authorization. Admin corpus/startup routes call `requireAdmin`; user routes first resolve the authenticated user/organisation. The intentional public analytics endpoint can only insert one of five allow-listed event names.
 - Vercel Production contains server-side database and Supabase credentials as encrypted variables. Preview contains only public Supabase variables, so server-backed preview flows are not production-equivalent.
 - Git history and source secret scanning are enforced by Gitleaks. CI has no production secret and no deploy step.
-- The admin URL-ingestion route follows arbitrary HTTP(S) redirects and remains an admin-only SSRF primitive. It should receive DNS/IP validation and redirect revalidation in a separately authorized application-security task.
+- The admin URL-ingestion SSRF primitive is closed in local commit `67a15c3`: URL imports require an exact hostname from `GREENLIT_CORPUS_URL_HOSTS`, credentials in URLs are rejected, and redirects are rejected. Leave the allowlist unset to disable URL imports. Deployment verification remains pending.
 
 ## Backups and monitoring
 
@@ -140,3 +146,5 @@ The GitHub workflow is non-deploying and runs clean install, `npm audit --audit-
 ## Audit limitation
 
 This was a defensive, point-in-time audit of the repository, production configuration, and restored clone. It reduces uncertainty but is not a guarantee of security. External Apple/Google/Resend dashboards, organization billing entitlements, log-retention policy, and Storage-object recovery require account-owner action. No secret value is included in this report.
+
+This AI-assisted scan is not a substitute for an independent professional security audit or penetration test, especially for a production system processing personal, payment, and legal data.

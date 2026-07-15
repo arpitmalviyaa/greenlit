@@ -1,5 +1,13 @@
 # Supabase Production Readiness Checklist
 
+## Week 0 completion update
+
+- ✅ Clone migration history is current after the consent-default migration; dry run says `Remote database is up to date`.
+- ✅ Disabled Apple UI is no longer visible by default; consent defaults off; Turnstile application wiring exists; public endpoint and browser-header controls were tightened.
+- ⚠ Turnstile, Google, Resend, invitation template, password/session policy, redirects, Storage limits/backup, PITR, advisors, alerts, and log drain still require dashboard/provider proof.
+- ❌ Production history repair was not executed because no fresh completed backup record was independently available.
+- ❌ Public beta remains NO-GO until the blocking rows below have objective acceptance evidence.
+
 Audit date: 15 July 2026
 
 Status: **⚠ READY FOR AUTHORIZED PRODUCTION HISTORY REPAIR; ❌ public beta remains blocked. Never run a real `supabase db push`.**

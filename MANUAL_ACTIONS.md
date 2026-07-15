@@ -1,5 +1,14 @@
 # Greenlit Supabase Manual Actions
 
+## Week 0 completion delta
+
+- Apple is now hidden unless `NEXT_PUBLIC_APPLE_AUTH_ENABLED=true`; do not set it until Apple is fully configured and tested.
+- Turnstile code is wired for signup, login, and recovery. Create a Cloudflare Turnstile site for `app.getgreenlit.in`, add `NEXT_PUBLIC_TURNSTILE_SITE_KEY` to Vercel Production (and only isolated Preview if desired), then open Supabase -> Authentication -> Bot and Abuse Protection -> CAPTCHA, choose Cloudflare Turnstile, enter the secret, enable it, redeploy, and verify valid/missing/invalid tokens.
+- Marketing consent is optional and off by default after verification. The migration is on the clone only and must go through the production release gate.
+- Corpus URL ingestion now requires `GREENLIT_CORPUS_URL_HOSTS` as a comma-separated exact hostname allowlist and rejects redirects. Leave unset to disable URL ingestion.
+- Public analytics now rejects bodies over 2 KiB, more than eight metadata keys, invalid key/value shapes, and more than 30 requests/minute per observed forwarded address. The limiter is process-local readiness, not a global distributed quota.
+- Production history repair is still blocked. First open Supabase -> production project -> Database -> Backups and verify a backup created within the approved window shows **Completed**. Record its identifier privately, record the window and rollback owner, then follow the runbook exactly.
+
 Perform these in order. **Never run a real production migration push for the history reconciliation.** Never paste keys into issues, chat, screenshots, or commits.
 
 ## 1. Execute the proven production history repair — blocking

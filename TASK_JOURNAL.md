@@ -1,5 +1,20 @@
 # Greenlit Task Journal
 
+## Week 0 Completion Pass - 2026-07-15
+
+- Reconstructed the full Week 0 checklist across stabilization, Supabase, security, deployment, and reconciliation documents.
+- Captured a clean repository/Vercel/Supabase baseline. Branch began four commits ahead and linked to clone `juhwnamjakmkvixxwrvv`.
+- Verified reconciliation commits `18a6af8`, `4b0a9e4`, and `21bf180` contain intended files and no credential values.
+- Stopped production migration-history repair before linking production because no fresh completed backup record could be independently obtained; the CLI management calls hung and were terminated. Production was not modified.
+- Hid Apple OAuth unless explicitly enabled, retained Google matching the observed production provider, and wired Turnstile tokens behind `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- Moved optional marketing consent to post-verification onboarding, defaulted it off, and applied the non-breaking migration only to the clone.
+- Added public analytics payload/metadata limits and rate-limit readiness, production HSTS, sensitive-route cache prevention, and fail-closed callback environment handling.
+- Closed admin corpus URL SSRF by requiring an exact environment host allowlist and rejecting redirects.
+- Clone migration dry run returned `Remote database is up to date` after the new consent migration.
+- Passed audit, lint, type-check, Auth, backend, phase, corpus, security, smoke, and production build gates. Live clone Auth/RLS/app suites were not rerun because clone credentials were unavailable locally; prior passing evidence remains cited, not represented as a new run.
+- Created completion evidence under `docs/change-control/2026-07-15-week-0-completion/`.
+- No Git push or Vercel deploy was performed. Public beta remains NO-GO.
+
 ## Phase 24-25 Reconciliation Before Phase 26-28 - 2026-06-28
 
 - Canonical repo path identified as `/Users/arpitmalviya/Downloads/greenlit`.
