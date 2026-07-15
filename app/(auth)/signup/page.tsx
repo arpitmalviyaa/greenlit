@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
 import { SocialAuth, OrDivider } from "@/components/auth/social-auth";
+import { Turnstile } from "@/components/auth/turnstile";
 import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function SignupPage() {
@@ -12,7 +13,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [marketingOptIn, setMarketingOptIn] = useState(true);
+  const [captchaToken, setCaptchaToken] = useState<string>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -40,8 +41,9 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          data: { name, marketing_opt_in: marketingOptIn },
+          data: { name, marketing_opt_in: false },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken,
         },
       });
 
@@ -127,14 +129,7 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)} required minLength={8} className={AUTH_FIELD} />
           </div>
 
-          <label className="flex items-start gap-2.5 cursor-pointer">
-            <input type="checkbox" checked={marketingOptIn}
-              onChange={(e) => setMarketingOptIn(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-[#1D9E75]" />
-            <span className="text-xs leading-relaxed text-zinc-500">
-              Send me product updates and the occasional marketing email. We&apos;re against spam too — unsubscribe anytime.
-            </span>
-          </label>
+          <Turnstile onToken={setCaptchaToken} />
 
           <button type="submit" disabled={loading} className={AUTH_BTN_PRIMARY}>
             {loading ? "Creating account…" : "Continue with email"}

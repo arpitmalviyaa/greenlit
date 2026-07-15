@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SocialAuth, OrDivider } from "@/components/auth/social-auth";
+import { Turnstile } from "@/components/auth/turnstile";
 import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_NOTICE, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function LoginPage() {
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [showResend, setShowResend] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const [notice, setNotice] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string>();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,7 +54,11 @@ export default function LoginPage() {
     // takes over — no flash back to "Sign in" that reads as a failed click.
     try {
       const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
 
       if (authError) {
         if (/email not confirmed/i.test(authError.message)) {
@@ -142,6 +148,7 @@ export default function LoginPage() {
             <input id="password" type="password" placeholder="••••••••" value={password}
               onChange={(e) => setPassword(e.target.value)} required className={AUTH_FIELD} />
           </div>
+          <Turnstile onToken={setCaptchaToken} />
           <button type="submit" disabled={loading} className={AUTH_BTN_PRIMARY}>
             {loading ? "Signing in…" : "Sign in"}
           </button>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Turnstile } from "@/components/auth/turnstile";
 import { AUTH_CARD, AUTH_FIELD, AUTH_LABEL, AUTH_BTN_PRIMARY, AUTH_ERROR } from "@/lib/ui/auth";
 
 export default function ForgotPasswordPage() {
@@ -10,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +21,7 @@ export default function ForgotPasswordPage() {
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken,
       });
       if (resetError) {
         setError(resetError.message);
@@ -60,6 +63,7 @@ export default function ForgotPasswordPage() {
           <input id="email" type="email" placeholder="you@example.com" value={email}
             onChange={(e) => setEmail(e.target.value)} required className={AUTH_FIELD} />
         </div>
+        <Turnstile onToken={setCaptchaToken} />
         <button type="submit" disabled={loading} className={AUTH_BTN_PRIMARY}>
           {loading ? "Sending…" : "Send reset link"}
         </button>

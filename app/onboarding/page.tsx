@@ -25,6 +25,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [accountType, setAccountType] = useState<string>("agency");
   const [workspaceName, setWorkspaceName] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +37,7 @@ export default function OnboardingPage() {
       const res = await fetch("/api/org/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: workspaceName, account_type: accountType }),
+        body: JSON.stringify({ name: workspaceName, account_type: accountType, marketing_opt_in: marketingOptIn }),
       });
       const data = await res.json() as { error?: string; redirect?: string };
       if (!res.ok) {
@@ -118,6 +119,15 @@ export default function OnboardingPage() {
                 </div>
               ))}
             </div>
+
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" checked={marketingOptIn}
+                onChange={(e) => setMarketingOptIn(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 accent-[#1D9E75]" />
+              <span className="text-xs leading-relaxed text-zinc-500">
+                Optional: send me product updates and occasional marketing email. Unsubscribe anytime.
+              </span>
+            </label>
 
             <button type="submit" disabled={loading} className={AUTH_BTN_PRIMARY}>
               {loading ? "Creating workspace…" : "Create workspace"}

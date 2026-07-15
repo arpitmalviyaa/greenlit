@@ -25,7 +25,13 @@ export async function updateSession(request: NextRequest) {
     response.headers.set("x-frame-options", "DENY");
     response.headers.set("referrer-policy", "strict-origin-when-cross-origin");
     response.headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
-    response.headers.set("content-security-policy", "default-src 'self'; connect-src 'self' https://*.supabase.co https://api.razorpay.com; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; frame-src https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    response.headers.set("content-security-policy", "default-src 'self'; connect-src 'self' https://*.supabase.co https://api.razorpay.com https://challenges.cloudflare.com; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    if (process.env.NODE_ENV === "production") {
+      response.headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
+    }
+    if (pathname.startsWith("/api/") || pathname.startsWith("/auth/") || pathname === "/reset-password") {
+      response.headers.set("cache-control", "private, no-store, max-age=0");
+    }
     console.info("greenlit_request", {
       request_id: requestId,
       user_id: userId,

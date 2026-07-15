@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { publicSupabaseEnv } from "@/lib/env";
 
 // This route handles Supabase email confirmation links.
 // Supabase appends ?code=... when the user clicks the confirmation link.
@@ -14,10 +15,11 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies();
+  const env = publicSupabaseEnv();
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.url,
+    env.anonKey,
     {
       cookies: {
         getAll() {

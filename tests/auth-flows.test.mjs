@@ -7,14 +7,32 @@ const read = (path) => readFileSync(path, "utf8");
 test("signup creates a Supabase user and sends confirmation to the app callback", () => {
   const source = read("app/(auth)/signup/page.tsx");
   assert.match(source, /supabase\.auth\.signUp\(/);
-  assert.match(source, /data:\s*\{\s*name,\s*marketing_opt_in: marketingOptIn\s*\}/);
+  assert.match(source, /data:\s*\{\s*name,\s*marketing_opt_in: false\s*\}/);
   assert.match(source, /emailRedirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
+  assert.match(source, /captchaToken/);
   assert.match(source, /supabase\.auth\.resend\(/);
+});
+
+test("provider UI hides Apple until explicitly enabled", () => {
+  const source = read("components/auth/social-auth.tsx");
+  assert.match(source, /NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false"/);
+  assert.match(source, /NEXT_PUBLIC_APPLE_AUTH_ENABLED === "true"/);
+});
+
+test("marketing consent is optional, off by default, and captured after verification", () => {
+  const onboarding = read("app/onboarding/page.tsx");
+  const route = read("app/api/org/create/route.ts");
+  const migration = read("supabase/migrations/20260715000000_marketing_consent_default.sql");
+  assert.match(onboarding, /useState\(false\)/);
+  assert.match(onboarding, /Optional: send me product updates/);
+  assert.match(route, /marketing_opt_in: marketing_opt_in === true/);
+  assert.match(migration, /alter column marketing_opt_in set default false/);
 });
 
 test("login uses password auth and routes only after a returned user", () => {
   const source = read("app/(auth)/login/page.tsx");
-  assert.match(source, /supabase\.auth\.signInWithPassword\(\{ email, password \}\)/);
+  assert.match(source, /supabase\.auth\.signInWithPassword\(\{/);
+  assert.match(source, /options: \{ captchaToken \}/);
   assert.match(source, /if \(!data\.user\)/);
   assert.match(source, /platform_admins/);
   assert.match(source, /onboarding_done/);
@@ -45,6 +63,7 @@ test("forgot-password requests a recovery email without revealing account existe
   const source = read("app/(auth)/forgot-password/page.tsx");
   assert.match(source, /resetPasswordForEmail\(email/);
   assert.match(source, /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
+  assert.match(source, /captchaToken/);
   assert.match(source, /If an account exists/);
 });
 

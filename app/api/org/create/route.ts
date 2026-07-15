@@ -17,8 +17,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const body = await request.json() as { name?: string; account_type?: string; jurisdiction_codes?: string[] };
-  const { name, account_type, jurisdiction_codes } = body;
+  const body = await request.json() as { name?: string; account_type?: string; jurisdiction_codes?: string[]; marketing_opt_in?: boolean };
+  const { name, account_type, jurisdiction_codes, marketing_opt_in } = body;
 
   if (!name || name.trim().length < 2) {
     return NextResponse.json({ error: "Workspace name must be at least 2 characters" }, { status: 400 });
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   // Link profile to org, set the chosen role, mark onboarding done
   const { error: profileError } = await serviceSupabase
     .from("profiles")
-    .update({ organisation_id: org.id, role: mapped.role, onboarding_done: true })
+    .update({ organisation_id: org.id, role: mapped.role, onboarding_done: true, marketing_opt_in: marketing_opt_in === true })
     .eq("id", user.id);
 
   if (profileError) {

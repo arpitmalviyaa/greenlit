@@ -47,8 +47,13 @@ if (subscription.includes("local_")) issues.push("billing subscription must not 
 if (!subscription.includes("RAZORPAY_PLAN_ID_")) issues.push("billing subscription must use configured provider plan IDs");
 
 const middleware = readFileSync("lib/supabase/middleware.ts", "utf8");
-for (const header of ["content-security-policy", "x-request-id", "x-frame-options", "x-content-type-options"]) {
+for (const header of ["content-security-policy", "strict-transport-security", "cache-control", "x-request-id", "x-frame-options", "x-content-type-options"]) {
   if (!middleware.includes(header)) issues.push(`middleware missing ${header}`);
+}
+
+const publicEvent = readFileSync("app/api/public/event/route.ts", "utf8");
+for (const control of ["content-length", "checkRateLimit", "sanitizeMeta"]) {
+  if (!publicEvent.includes(control)) issues.push(`public analytics endpoint missing ${control}`);
 }
 
 if (issues.length) {

@@ -1,9 +1,8 @@
 "use client";
 
-// Google / Apple sign-in. Wired to Supabase OAuth; the providers must be
-// enabled in the Supabase dashboard (with OAuth app credentials) for these to
-// complete. Until then a click shows a friendly "coming soon" instead of a raw
-// provider error.
+// Provider buttons must match the providers actually enabled in Supabase.
+// Google is currently enabled in production; Apple stays hidden until its
+// dashboard credentials exist and NEXT_PUBLIC_APPLE_AUTH_ENABLED=true is set.
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -39,14 +38,18 @@ export function SocialAuth({ onError }: { onError?: (msg: string) => void }) {
 
   return (
     <div className="space-y-2.5">
-      <button type="button" onClick={() => signIn("google")} disabled={busy !== null} className={AUTH_BTN_OUTLINE}>
-        <GoogleIcon />
-        {busy === "google" ? "Connecting…" : "Continue with Google"}
-      </button>
-      <button type="button" onClick={() => signIn("apple")} disabled={busy !== null} className={AUTH_BTN_OUTLINE}>
-        <AppleIcon />
-        {busy === "apple" ? "Connecting…" : "Continue with Apple"}
-      </button>
+      {process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false" && (
+        <button type="button" onClick={() => signIn("google")} disabled={busy !== null} className={AUTH_BTN_OUTLINE}>
+          <GoogleIcon />
+          {busy === "google" ? "Connecting…" : "Continue with Google"}
+        </button>
+      )}
+      {process.env.NEXT_PUBLIC_APPLE_AUTH_ENABLED === "true" && (
+        <button type="button" onClick={() => signIn("apple")} disabled={busy !== null} className={AUTH_BTN_OUTLINE}>
+          <AppleIcon />
+          {busy === "apple" ? "Connecting…" : "Continue with Apple"}
+        </button>
+      )}
     </div>
   );
 }
