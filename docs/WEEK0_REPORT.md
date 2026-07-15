@@ -1,7 +1,9 @@
 # Week 0 Greenlit Stabilization Report
 
-Date: 2026-07-15  
-Branch: `website-v2-editorial`  
+Date: 2026-07-15
+
+Branch: `website-v2-editorial`
+
 Status: Code-complete, pending listed dashboard hardening and post-push CI confirmation
 
 ## Completed

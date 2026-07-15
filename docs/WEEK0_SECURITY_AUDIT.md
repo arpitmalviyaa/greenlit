@@ -1,7 +1,9 @@
 # Week 0 Security Audit
 
-Date: 2026-07-15  
-Branch: `website-v2-editorial`  
+Date: 2026-07-15
+
+Branch: `website-v2-editorial`
+
 Scope: tracked source, git history, dependencies, active API routes, Supabase Auth/database/storage configuration, GitHub repository security settings, and CI supply chain.
 
 ## Result
