@@ -509,3 +509,14 @@
 - Verified starting state: clean worktree, local HEAD `89d8656`, exactly matched `origin/website-v2-editorial`.
 - Verified GitHub authentication has `repo` and `workflow` scopes, so CI workflow files can be pushed without exposing the token.
 - No secrets or ignored local environment files were staged.
+
+### Task 2: Password reset investigation
+
+- Traced the complete recovery path: `/forgot-password` calls Supabase Auth, the recovery template uses `/auth/confirm/recovery/{{ .TokenHash }}`, the route verifies the OTP, `/reset-password` updates the password, and the client signs out before returning to login.
+- Exact historical root cause, verified from commit `c3098ae`: query-string token links were corrupted by quoted-printable email transport when a token fragment such as `=58` was decoded as a byte. The path-based token route removed `=` from the link and fixed both confirmation and recovery links.
+- Verified current Supabase Auth configuration through the Management API without printing credentials: custom SMTP enabled at `smtp.resend.com:587`, sender `noreply@mail.getgreenlit.in`, site URL `https://app.getgreenlit.in`, recovery and confirmation templates both use path-based token links.
+- Verified current DNS records: SPF for `send.mail.getgreenlit.in` resolves through the provider include to Amazon SES; DKIM exists at `resend._domainkey.mail.getgreenlit.in`; root DMARC is `p=quarantine`; provider MX exists; SMTP port 587 is reachable.
+- Verified current production Auth logs: `/recover` returned 200, `/verify` returned 200, password login returned 200, and logout returned 204 in one completed recovery sequence on 2026-07-15. No SMTP/gomail error was present in the inspected window.
+- Conclusion: password reset is not currently failing. The former failure was link corruption, not an absent Resend client integration. Resend is configured as Supabase Auth's SMTP provider in the dashboard, so application code does not call the Resend API directly.
+- Files already containing the fix: `app/auth/confirm/[type]/[token]/route.ts`, `app/(auth)/forgot-password/page.tsx`, `app/(auth)/reset-password/page.tsx`. No source modification was required.
+- Dashboard state already contains the required fix. No dashboard mutation was made.
