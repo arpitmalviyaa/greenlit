@@ -583,3 +583,41 @@
 - Revalidated the historical password-reset root cause and current path-token fix. Current DNS/SMTP state supports Resend delivery; invitation email remains query-token based and requires the same hardening.
 - Added `SECURITY_REPORT.md`, `docs/SUPABASE_PRODUCTION_CHECKLIST.md`, and `MANUAL_ACTIONS.md` with exact findings, readiness gates, click-by-click dashboard work, risk, and time estimates.
 - No production setting, schema, provider, secret, or deployment was changed.
+
+## Supabase Clone Reconciliation Validation - 2026-07-15
+
+### Phase 0: Safety and baseline
+
+- Verified linked ref from `supabase/.temp/project-ref` before every Supabase CLI command: `juhwnamjakmkvixxwrvv` (`greenlit-migration-check`). Production ref `ovjqzgzqcyowitjfwptz` remained unlinked.
+- Baseline branch `website-v2-editorial`, commit `b6fd375a54f1e8b869617d31e3dbe22335974b8e`, ahead of its remote by one commit.
+- Preserved the user's untracked reconstructed analytics migration and initial reconciliation evidence.
+- Detected npm from `package-lock.json`; inventoried scripts, test utilities, and required environment names without values.
+- Initial and final clone migration lists were aligned; both dry runs returned `Remote database is up to date.`
+
+### Phase 1: Static and build verification
+
+- Passed high-severity npm audit (0 vulnerabilities), lint, type-check, unit tests (9), integration tests (9), Auth source/session tests (8 plus cookie checks), backend audit (4), smoke, migration audit (50 migrations), Supabase audit, security audit, and the Next.js production build (105 pages).
+- No `npm test` script exists; existing repository scripts were used. No dependency was upgraded.
+
+### Phases 2-3: Clone application and Auth
+
+- Used in-process clone credentials obtained through the approved CLI login; values were never printed, written, or committed. `.env.clone.local` is already ignored by `.env.*.local`.
+- Started Next.js on `127.0.0.1:3100` with clone environment overrides. Health and public routes returned 200; protected dashboard redirected to login.
+- Passed authenticated application write (`POST /api/org/create` -> 201) and read (`GET /api/billing/status` -> 200), with full fixture cleanup.
+- Added and passed 11 live clone Auth assertions: login, refresh, logout, recovery request, valid/reused recovery token, signup token, invite token, and invalid-token handling.
+- First live Auth run exposed only a test-fixture issue: Supabase rejects reserved `example.com` recovery recipients. Changed the test to a Greenlit-owned QA address and reran successfully. Email delivery and external providers were not claimed.
+
+### Phase 4: Two-tenant RLS gate
+
+- Replaced the unsafe `.env.local` fallback in `qa-cross-tenant.mjs` with a hard clone-ref gate and process-only credentials.
+- Service role is limited to fixture setup/cleanup; all 60 assertions use anon or authenticated clients.
+- Passed own/cross-tenant reads, direct-PK and list isolation, forged org insert, update/delete denial, own authenticated write, four tenant bucket upload/download boundaries, service-only table denial, and anon denial.
+- Zero QA users, organisations, and contracts remained after cleanup.
+
+### Phases 5-8: Sanity checks and handoff
+
+- Clone has 108 public base tables, 108 with RLS, none without RLS, six private buckets, and four intentional RLS/no-policy tables.
+- Tenant buckets `contracts`, `proof-vault`, `claim-evidence`, and `ip-evidence` are organisation-prefixed and passed access tests. `corpus` and `startup-docs` are UUID-prefixed service-only buckets.
+- Clone Auth is deliberately not production-equivalent: local Site URL, no redirects, Google/Apple disabled, SMTP unset. Provider delivery/configuration remains manual.
+- Created complete change-control evidence, unresolved actions, and an exact production history-repair runbook. Production was not modified.
+- Created logical commits `18a6af8` (migration reconstruction/evidence) and `4b0a9e4` (clone application/Auth/RLS gates). No push performed.

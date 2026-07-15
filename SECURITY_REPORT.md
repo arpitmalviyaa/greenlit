@@ -4,15 +4,15 @@ Audit date: 15 July 2026
 
 Project: `ovjqzgzqcyowitjfwptz` (`ap-southeast-2`)
 
-Scope: repository, linked production project, Auth, database, Storage, Edge Functions, environment configuration, CI/CD, RLS, migrations, backups, and advisors.
+Scope: repository, production configuration, restored clone `juhwnamjakmkvixxwrvv`, Auth, database, Storage, Edge Functions, environment configuration, CI/CD, RLS, migrations, backups, and advisors.
 
 ## Executive result
 
-**Production readiness: NO-GO until the blocking items below are resolved.** No live setting or migration was changed during this audit. The linked project has migration-history divergence, so applying local migrations or making database hardening changes before reconciliation could replay already-applied DDL or create an unrecoverable state.
+**Decision: READY FOR EXPLICITLY AUTHORIZED PRODUCTION HISTORY REPAIR; public beta remains NO-GO until the other blocking items are resolved.** The restored clone has aligned history, an empty migration dry run, 108/108 RLS coverage, passing application/Auth/build gates, and a passing 60-assertion two-tenant suite. Production was not linked or modified during validation.
 
 | Severity | Finding | Evidence | Required action |
 |---|---|---|---|
-| Critical | Local and remote migration histories diverge | `supabase migration list --linked` shows remote-only and local-only versions for changes with overlapping names | Reconcile history in a staging clone, review SQL equivalence, then use `supabase migration repair`; do not run `db push` now |
+| Critical | Production migration history still uses superseded version IDs | Clone reconciliation is fully proven; production repair remains unexecuted | Follow the exact production runbook after a fresh completed backup and explicit authorization; never run a real `db push` |
 | High | Database SSL enforcement is disabled | Live CLI returned `database: false` | Inventory every direct connection, update each to require TLS, then enable enforcement |
 | High | Direct database access is open to the internet | Live restrictions are `0.0.0.0/0` and `::/0` | Move runtime access to the pooler and restrict direct DB CIDRs to controlled administration/CI egress |
 | High | Apple sign-in is offered by the UI but unavailable | Apple provider is disabled and has no client ID or secret; `SocialAuth` renders Apple | Configure Apple completely before beta, or separately authorize removal of the button |
@@ -93,16 +93,16 @@ The live Performance Advisor reports 355 recommendations. They are optimization 
 
 No long-running query was active. Bloat was negligible (largest reported waste 16 kB). The largest table is `corpus_chunks` at about 13,719 rows / 12 MB. `agent_tasks` has only 19 estimated rows but approximately 208,506 sequential scans; this is polling traffic, not a missing-index emergency at the current size. Query statistics also show roughly 4,500 repeated task/event polling calls. Optimize polling frequency before adding speculative indexes.
 
-### Migration blocker
+### Migration reconciliation status
 
-The repository and production contain the same logical changes under different version identifiers, plus versions present on only one side. Examples:
+The repository and production originally contained the same logical changes under different version identifiers, plus versions present on only one side. Examples:
 
 - Local-only numbered migrations: `034_tighten_profile_insert_policies.sql`, `035_corpus.sql`.
 - Remote equivalents: `20260706010634_tighten_profile_insert_policies`, `20260709022406_corpus`.
 - Local timestamped changes from `20260707000000` through `20260713000000` have different remote timestamps such as `20260707042112` through `20260713034401`.
-- Remote has `20260706054555_analytics_events`; no same-version file exists locally.
+- Remote had `20260706054555_analytics_events`; the same-version local file has now been reconstructed from the stored statement.
 
-This is a deployment blocker even where SQL is equivalent. A normal `supabase db push` would interpret local versions as pending. Reconciliation must compare the stored remote statement for each version against the local SQL before marking versions applied/reverted.
+The restored clone's history was repaired only after the stored statements were matched to local SQL. Final clone evidence shows every version aligned and `supabase db push --dry-run` returning `Remote database is up to date.` Post-repair validation passed: application start and authenticated read/write, 11 live Auth assertions, 60 tenant-isolation assertions, 108 public tables, 108 RLS-enabled tables, six private buckets, and zero leftover fixtures. Production history still requires the separately authorized metadata-only repair in the change-control runbook.
 
 ## Storage
 
@@ -128,7 +128,7 @@ All buckets are private: `claim-evidence`, `contracts`, `corpus`, `ip-evidence`,
 
 - Seven consecutive completed physical daily backups were present, dated 8-14 July 2026. This verifies a seven-day daily-backup retention window.
 - PITR is disabled. Current worst-case database recovery point is approximately 24 hours.
-- A restore was not executed against production. Restore capability is available in Dashboard -> Database -> Backups, but must be proven by restoring a backup into a separate project and running integrity checks.
+- A production backup was restored into the separate clone and database integrity checks passed. Production itself was never overwritten. Storage object-byte recovery remains unproven because database backups contain Storage metadata, not object bytes.
 - Storage object bytes require a separate backup.
 - Security Advisor is operational (5 findings: 1 warning, 4 informational). Performance Advisor is operational (355 recommendations).
 - No log drain or external retention destination was verified. Configure one if retention/compliance requires more than the dashboard plan provides.
@@ -139,4 +139,4 @@ The GitHub workflow is non-deploying and runs clean install, `npm audit --audit-
 
 ## Audit limitation
 
-This was a defensive, point-in-time audit of the repository and linked project. It reduces uncertainty but is not a guarantee of security. External Apple/Google/Resend dashboards, organization billing entitlements, log-retention policy, and an isolated restore test require account-owner action. No secret value is included in this report.
+This was a defensive, point-in-time audit of the repository, production configuration, and restored clone. It reduces uncertainty but is not a guarantee of security. External Apple/Google/Resend dashboards, organization billing entitlements, log-retention policy, and Storage-object recovery require account-owner action. No secret value is included in this report.

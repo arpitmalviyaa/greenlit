@@ -1,0 +1,10 @@
+Command: supabase db push --dry-run
+Pre-command hard gate: supabase/.temp/project-ref = juhwnamjakmkvixxwrvv
+Result: PASS
+
+Initialising login role...
+DRY RUN: migrations will *not* be pushed to the database.
+Connecting to remote database...
+Remote database is up to date.
+
+Captured before and after clone Auth/RLS testing. No SQL was proposed in either run.

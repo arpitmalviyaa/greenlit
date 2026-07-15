@@ -1,26 +1,20 @@
 # Greenlit Supabase Manual Actions
 
-Perform these in order. **Stop after any failed verification. Do not run a production migration push until Action 1 is complete.** Replace `<project-ref>` with `ovjqzgzqcyowitjfwptz`. Never paste keys into issues, chat, screenshots, or commits.
+Perform these in order. **Never run a real production migration push for the history reconciliation.** Never paste keys into issues, chat, screenshots, or commits.
 
-## 1. Reconcile migration history — blocking
+## 1. Execute the proven production history repair — blocking
 
-1. In Supabase Dashboard, open the project -> **Database -> Backups**.
-2. Select the latest completed backup -> **Restore to a new project**. Do not restore over production.
-3. In the clone, open **SQL Editor** and confirm the expected table count (108 in `public`) and RLS count (108 enabled).
-4. Locally run `supabase migration list --linked` and save the list as change-control evidence.
-5. Compare each remote-only stored migration statement with its local namesake. In particular review:
-   - remote `20260706010634` vs local `034_tighten_profile_insert_policies.sql`;
-   - remote `20260709022406` vs local `035_corpus.sql`;
-   - remote `20260707042112` vs local `20260707000000_marketing_consent.sql`;
-   - remote `20260709022416` / `20260709022430` vs local `20260708000000` / `20260708000001`;
-   - remote `20260712114058` and `20260713033850`-`20260713034401` vs local `20260712000000`-`20260713000000`.
-6. If and only if SQL effects are identical, use `supabase migration repair --status applied <local-version>` for the equivalent local version and `--status reverted <remote-version>` for the superseded history entry. Run this against the clone first.
-7. Run `supabase db push --dry-run` against the clone. Expected result: no already-existing object is replayed.
-8. Run the complete app test/build suite against the clone and execute cross-tenant RLS tests.
-9. Take a fresh production backup, schedule a maintenance window, repeat only the proven repair commands against production, then re-run `supabase migration list --linked`.
-10. Commit the reconciled migration files/history notes before any future schema change.
+Clone reconciliation and all validation gates are complete. Use [the production runbook](docs/change-control/2026-07-15-supabase-reconciliation/production-runbook.md) for the exact commands and stop conditions.
 
-If any pair is not byte-for-byte or semantically equivalent, stop and create a new idempotent reconciliation migration; do not mark it applied.
+1. Obtain explicit production authorization and a maintenance window.
+2. Confirm a fresh completed production backup.
+3. Link only to `ovjqzgzqcyowitjfwptz` and verify the ref before every command.
+4. Run the exact history-repair pairs from the runbook, verifying the migration list after each pair.
+5. Run `supabase db push --dry-run`; require `Remote database is up to date.`
+6. If the dry run proposes any SQL, stop. Do not run a real push.
+7. Run production smoke/Auth/RLS checks and save sanitized evidence.
+
+Production was not modified during clone validation.
 
 ## 2. Enforce database transport and network controls — blocking
 

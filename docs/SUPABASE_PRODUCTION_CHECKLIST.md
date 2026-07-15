@@ -2,7 +2,7 @@
 
 Audit date: 15 July 2026
 
-Status: **❌ BLOCKED — do not run `supabase db push` or open public beta yet.**
+Status: **⚠ READY FOR AUTHORIZED PRODUCTION HISTORY REPAIR; ❌ public beta remains blocked. Never run a real `supabase db push`.**
 
 ## ✅ Already configured
 
@@ -28,12 +28,16 @@ Status: **❌ BLOCKED — do not run `supabase db push` or open public beta yet.
 | Daily backups | Seven completed physical backups retained | Medium because RPO is 24h | Done |
 | Advisors | Security and Performance Advisors are available and were reviewed | Low | Done |
 | CI secret/dependency/build gates | Gitleaks, Dependabot, npm audit, tests, and build; no deployment | Low | Done |
+| Clone migration reconciliation | Every local/remote version aligned; dry run says remote up to date | Low | Done |
+| Clone application/Auth validation | Authenticated app read/write and 11 live Auth assertions passed | Low | Done |
+| Two-tenant RLS regression | 60/60 anon/authenticated assertions passed; service role only set up/removed fixtures | Low | Done |
+| Database restore drill | Production backup restored into a separate clone; 108/108 integrity checks passed | Low | Done |
 
 ## ❌ Blocking issues
 
 | Blocker | Risk | Time to fix | Exit criterion |
 |---|---:|---:|---|
-| Migration history divergence | Critical | 2-4 hours plus staging validation | Local and remote histories match; staging clone accepts `db push --dry-run` with no replayed DDL |
+| Production history repair not yet authorized/executed | Critical | 30-60 min maintenance window | Run only the proven metadata repairs; production list aligns and dry run proposes no SQL |
 | Database SSL enforcement off | High | 30-60 min | Every client verified with TLS, enforcement enabled, health checks pass |
 | Direct DB open to all IPv4/IPv6 | High | 1-2 hours | Direct endpoint limited to approved egress; runtime uses pooler where appropriate |
 | Apple button points to a disabled provider | High | 1-3 hours depending on Apple credentials | Apple end-to-end login succeeds, or a separately approved app change removes the unavailable option |
@@ -55,10 +59,10 @@ Status: **❌ BLOCKED — do not run `supabase db push` or open public beta yet.
 | Resend domain status/logs | Cannot be observed with current credentials | Confirm domain Verified and inspect latest deliveries | Medium | 10 min |
 | Bucket size/MIME limits | None | Set per bucket after confirming formats; start from app caps (contracts 15 MB, proof 25 MB, corpus/startup 15 MB) | Medium | 30 min |
 | PITR | Disabled | Enable if a 24-hour RPO is unacceptable | Medium | 15 min plus cost approval |
-| Restore drill | Not run | Restore to a separate project; never test by overwriting production | High | 1-2 hours |
+| Storage restore drill | Database clone restore passed; Storage bytes are separate | Export/restore one object per bucket and compare checksums | High | 1-2 hours |
 | Log drain/retention | Not verified | Select S3/OTLP/Sentry destination and retention policy | Medium | 30-90 min |
 | Performance Advisor | 355 recommendations | Prioritize 92 RLS init-plan fixes and polling; observe before dropping indexes | Low now | 1-3 days staged |
 
 ## Release gate
 
-Public beta may proceed only when every ❌ item has an owner, the migration history is reconciled and tested in a clone, SSL/network controls are active, Apple is no longer a dead authentication path, and database plus Storage recovery drills have passed. All remaining ⚠ items must have a documented risk acceptance if not completed.
+The production history repair may proceed only under the reviewed change-control runbook, a fresh completed backup, and explicit authorization. Public beta may proceed only when the production repair is verified, SSL/network controls are active, Apple is no longer a dead authentication path, and Storage recovery has passed. All remaining ⚠ items require documented risk acceptance.

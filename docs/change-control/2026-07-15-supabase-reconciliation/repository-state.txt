@@ -1,0 +1,72 @@
+Baseline captured 2026-07-15 (Asia/Kolkata)
+
+Working directory: /Users/arpitmalviya/Downloads/greenlit
+Branch: website-v2-editorial
+Baseline commit: b6fd375a54f1e8b869617d31e3dbe22335974b8e
+Remote relation at baseline: ahead of origin/website-v2-editorial by 1 commit
+Linked Supabase project: juhwnamjakmkvixxwrvv (greenlit-migration-check)
+Production project: ovjqzgzqcyowitjfwptz (not linked, not modified)
+Package manager: npm, determined from package-lock.json
+
+Initial uncommitted files preserved:
+- docs/change-control/clone-migration-list-2026-07-15.txt
+- docs/change-control/local-migrations-for-reconciliation-2026-07-15.txt
+- supabase/migrations/20260706054555_analytics_events.sql
+
+Available validation scripts used:
+- lint
+- type-check
+- test:unit
+- test:integration
+- test:auth
+- test:backend-audit
+- smoke
+- migration:audit
+- supabase:audit
+- security:audit
+- build
+- qa:cross-tenant (rewritten with a clone hard gate)
+
+Clone test helpers added:
+- scripts/qa-clone-app.mjs
+- scripts/qa-clone-auth.mjs
+- scripts/qa-cross-tenant.mjs
+
+Environment variable names required by clone tests (values never recorded):
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- NEXT_PUBLIC_APP_URL
+- GREENLIT_CLONE_APP_URL
+
+Other repository environment names inventoried without values:
+- ANTHROPIC_API_KEY
+- COURTLISTENER_API_KEY
+- DATABASE_URL
+- GREENLIT_AUDIT_EMAIL
+- GREENLIT_AUDIT_PASSWORD
+- GREENLIT_BASE_URL
+- GREENLIT_EMAIL_PROVIDER
+- GREENLIT_ENV
+- GREENLIT_JWT_SECRET
+- GREENLIT_QUEUE_NAME
+- GREENLIT_RATE_LIMIT_PER_MINUTE
+- GREENLIT_REQUEST_TIMEOUT_SECONDS
+- GREENLIT_STORAGE_BUCKET
+- NEXTAUTH_SECRET
+- OPENAI_API_KEY
+- RAZORPAY_KEY_ID
+- RAZORPAY_KEY_SECRET
+- RAZORPAY_WEBHOOK_SECRET
+- RESEND_API_KEY
+- SENTRY_DSN
+- SMOKE_BASE_URL
+- VPS_CHECKER_URL
+
+Clone credentials were obtained in-process from the approved Supabase CLI login, were never printed, and were not written to a repository file. `.env.clone.local` is covered by the existing `.env.*.local` ignore rule.
+
+Logical commits created before the documentation commit:
+- 18a6af8 fix: restore analytics migration history
+- 4b0a9e4 test: add clone auth and tenant isolation gates
+
+No push was performed.
