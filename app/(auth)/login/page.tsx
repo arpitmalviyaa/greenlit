@@ -47,6 +47,9 @@ export default function LoginPage() {
     setShowResend(false);
     setLoading(true);
 
+    // Only errors that keep us on this page reset the spinner. On success we
+    // navigate away, so the button stays "Signing in…" until the next page
+    // takes over — no flash back to "Sign in" that reads as a failed click.
     try {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -58,27 +61,26 @@ export default function LoginPage() {
         } else {
           setError(authError.message === "Failed to fetch" ? "Login could not reach the service. Check your connection and try again." : authError.message);
         }
+        setLoading(false);
         return;
       }
       if (!data.user) {
         setError("Login failed. Please try again.");
+        setLoading(false);
         return;
       }
 
-      const { data: platformAdmin } = await supabase
-        .from("platform_admins").select("user_id").eq("user_id", data.user.id).maybeSingle();
-      if (platformAdmin) {
-        router.push("/master");
-        router.refresh();
-        return;
-      }
+      // Route lookups in parallel (one round-trip, not two — the DB is in Sydney).
+      const [{ data: platformAdmin }, { data: profile }] = await Promise.all([
+        supabase.from("platform_admins").select("user_id").eq("user_id", data.user.id).maybeSingle(),
+        supabase.from("profiles").select("role, onboarding_done").eq("id", data.user.id).maybeSingle(),
+      ]);
 
-      const { data: profile } = await supabase
-        .from("profiles").select("role, onboarding_done").eq("id", data.user.id).single();
-      if (!profile) {
-        router.push("/signup");
-        return;
-      }
+      // router.replace (not push+refresh): navigating to a new route already
+      // renders it fresh with the new session cookie, so refresh() was a wasted
+      // round-trip. replace() also keeps the back button off the login page.
+      if (platformAdmin) return router.replace("/master");
+      if (!profile) return router.replace("/signup");
 
       const destinations: Record<string, string> = {
         agency_admin: profile.onboarding_done ? "/agency" : "/onboarding",
@@ -86,11 +88,9 @@ export default function LoginPage() {
         manager: profile.onboarding_done ? "/manager" : "/onboarding",
         brand: profile.onboarding_done ? "/brand" : "/onboarding",
       };
-      router.push(destinations[profile.role] ?? "/");
-      router.refresh();
+      router.replace(destinations[profile.role] ?? "/");
     } catch {
       setError("Login could not reach the service. Check your connection and try again.");
-    } finally {
       setLoading(false);
     }
   }
