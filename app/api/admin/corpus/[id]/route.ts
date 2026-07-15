@@ -14,10 +14,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select("id, doc_kind, deal_type, vertical, sanitized, title, source_note, founder_note, file_path, status, created_at")
     .eq("id", id).single();
   if (!doc) return NOT_FOUND;
-  const { data: chunks } = await service.from("corpus_chunks")
-    .select("id, chunk_index, content, clause_type, risk_note, stance, status")
-    .eq("document_id", id).order("chunk_index", { ascending: true });
-  return NextResponse.json({ document: doc, chunks: chunks ?? [] });
+  // Cap the payload: a statute can have thousands of chunks, and returning them
+  // all makes this request time out (→ the drill-in showed "No chunks"). Return
+  // the first page + the true total so the UI can say "showing N of TOTAL".
+  const CHUNK_PAGE = 200;
+  const [{ data: chunks }, { count }] = await Promise.all([
+    service.from("corpus_chunks")
+      .select("id, chunk_index, content, clause_type, risk_note, stance, status")
+      .eq("document_id", id).order("chunk_index", { ascending: true }).limit(CHUNK_PAGE),
+    service.from("corpus_chunks").select("id", { count: "exact", head: true }).eq("document_id", id),
+  ]);
+  return NextResponse.json({ document: doc, chunks: chunks ?? [], chunk_total: count ?? (chunks?.length ?? 0) });
 }
 
 // Sanitization gate: mark a document sanitized (party names / identifying details

@@ -22,26 +22,50 @@ type Staged = { file: File; doc_kind: string; deal_type: string; vertical: strin
 
 export function CorpusAdmin() {
   const [tab, setTab] = useState<"upload" | "link" | "library" | "graph" | "note">("upload");
-  const label = { upload: "Upload", link: "Link", library: "Library", graph: "Graph", note: "Quick note" } as const;
+  // Doc list is loaded once here and shared with Library + Graph so switching
+  // tabs is instant (no re-fetch) and the header can show live counts.
+  const [docs, setDocs] = useState<DocRow[] | null>(null);
+  const reload = useCallback(async () => {
+    const res = await fetch("/api/admin/corpus");
+    if (res.ok) setDocs(await res.json() as DocRow[]);
+  }, []);
+  useEffect(() => { void reload(); }, [reload]);
+
+  const total = docs?.length ?? 0;
+  const unsanitized = docs?.filter((d) => !d.sanitized).length ?? 0;
+  const label = {
+    upload: "Upload", link: "Link",
+    library: total ? `Library (${total})` : "Library",
+    graph: "Graph", note: "Quick note",
+  } as const;
+
   return (
-    <div className={`mx-auto px-4 py-8 text-white ${tab === "graph" ? "max-w-6xl" : "max-w-4xl"}`}>
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold">Corpus</h1>
-        <p className="text-sm text-zinc-500">House knowledge — contracts, judgments, blog links, reviewer notes. Only you see this.</p>
-      </header>
-      <nav className="mb-6 flex gap-2">
-        {(["upload", "link", "library", "graph", "note"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg px-3 py-1.5 text-sm ${tab === t ? "bg-white text-black" : "border border-white/15 text-zinc-300"}`}>
-            {label[t]}
-          </button>
-        ))}
-      </nav>
-      {tab === "upload" && <UploadView />}
-      {tab === "link" && <LinkView />}
-      {tab === "library" && <LibraryView />}
-      {tab === "graph" && <GraphView />}
-      {tab === "note" && <NoteView />}
+    <div className="min-h-screen bg-[#0a0a0b] text-white">
+      <div className={`mx-auto px-4 py-8 ${tab === "graph" ? "max-w-6xl" : "max-w-4xl"}`}>
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold">Corpus</h1>
+          <p className="mt-1 text-sm text-zinc-400">House knowledge — statutes, contracts, judgments, blog links, reviewer notes. Only you see this.</p>
+          {docs && (
+            <p className="mt-2 text-xs text-zinc-500">
+              {total} document{total === 1 ? "" : "s"} loaded
+              {unsanitized > 0 && <> · <span className="text-amber-400">{unsanitized} awaiting review</span></>}
+            </p>
+          )}
+        </header>
+        <nav className="mb-6 flex flex-wrap gap-2">
+          {(["upload", "link", "library", "graph", "note"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${tab === t ? "bg-white text-black" : "border border-white/15 text-zinc-300 hover:border-white/30 hover:text-white"}`}>
+              {label[t]}
+            </button>
+          ))}
+        </nav>
+        {tab === "upload" && <UploadView onSaved={reload} />}
+        {tab === "link" && <LinkView onSaved={reload} />}
+        {tab === "library" && <LibraryView docs={docs} reload={reload} />}
+        {tab === "graph" && <GraphView docs={docs ?? []} />}
+        {tab === "note" && <NoteView onSaved={reload} />}
+      </div>
     </div>
   );
 }
@@ -68,21 +92,11 @@ type GNode = {
   x: number; y: number; vx: number; vy: number; fixed?: boolean; meta?: DocRow;
 };
 
-function GraphView() {
-  const [docs, setDocs] = useState<DocRow[]>([]);
-  const [loading, setLoading] = useState(true);
+function GraphView({ docs }: { docs: DocRow[] }) {
   const [hover, setHover] = useState<GNode | null>(null);
   const [tick, setTick] = useState(0); // re-render as the sim settles
   const nodesRef = useRef<GNode[]>([]);
   const linksRef = useRef<[number, number, number][]>([]); // [a, b, restLength]
-
-  useEffect(() => {
-    (async () => {
-      const res = await fetch("/api/admin/corpus");
-      if (res.ok) setDocs(await res.json() as DocRow[]);
-      setLoading(false);
-    })().catch(() => setLoading(false));
-  }, []);
 
   const W = 1000, H = 640, CX = W / 2, CY = H / 2;
 
@@ -147,7 +161,6 @@ function GraphView() {
   const nodes = nodesRef.current, links = linksRef.current;
   void tick; // dependency for re-render during settle
 
-  if (loading) return <p className="text-sm text-zinc-500">Loading map…</p>;
   if (!docs.length) return <p className="text-sm text-zinc-500">No documents yet — upload some to see the map.</p>;
 
   return (
@@ -190,7 +203,7 @@ function GraphView() {
   );
 }
 
-function UploadView() {
+function UploadView({ onSaved }: { onSaved: () => void }) {
   const [items, setItems] = useState<Staged[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -233,7 +246,7 @@ function UploadView() {
       const res = await fetch("/api/admin/corpus", { method: "POST", body: fd });
       const body = await res.json() as { status?: string; chunk_count?: number; error?: string };
       if (!res.ok) update(i, { state: "error", msg: body.error ?? "failed" });
-      else update(i, { state: "done", msg: `${body.status} · ${body.chunk_count} chunks` });
+      else { update(i, { state: "done", msg: `${body.status} · ${body.chunk_count} chunks` }); onSaved(); }
     } catch (e) {
       update(i, { state: "error", msg: e instanceof Error ? e.message : "failed" });
     }
@@ -305,43 +318,55 @@ function UploadView() {
   );
 }
 
-function LibraryView() {
-  const [docs, setDocs] = useState<DocRow[]>([]);
+function LibraryView({ docs, reload }: { docs: DocRow[] | null; reload: () => Promise<void> }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [vertical, setVertical] = useState("");
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/corpus${vertical ? `?vertical=${vertical}` : ""}`);
-    if (res.ok) setDocs(await res.json() as DocRow[]);
-  }, [vertical]);
-  useEffect(() => { void load(); }, [load]);
+  if (openId) return <DocDetail id={openId} onBack={() => { setOpenId(null); void reload(); }} />;
 
-  if (openId) return <DocDetail id={openId} onBack={() => { setOpenId(null); void load(); }} />;
+  if (docs === null) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-11 animate-pulse rounded-lg bg-white/5" />)}
+      </div>
+    );
+  }
+
+  const shown = vertical ? docs.filter((d) => d.vertical === vertical) : docs;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Plain-language explainer so "sanitized" isn't a mystery. */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-zinc-400">
+        <p><span className="font-medium text-white">What is “sanitized”?</span> A document only feeds the AI legal check once you confirm it carries no private party names or personal details.</p>
+        <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+          <span className="inline-flex items-center gap-1.5"><Dot c="#34d399" /><span className="text-emerald-400">Sanitized</span> — reviewed, safe to use</span>
+          <span className="inline-flex items-center gap-1.5"><Dot c="#f59e0b" /><span className="text-amber-400">Awaiting review</span> — held back until you confirm</span>
+        </p>
+      </div>
+
       <select className={`${field} max-w-xs`} value={vertical} onChange={(e) => setVertical(e.target.value)}>
         <option value="">All verticals</option>
         {VERTICALS.map((k) => <option key={k} value={k}>{k}</option>)}
       </select>
-      <div className="overflow-x-auto">
+
+      <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs uppercase text-zinc-500">
-            <tr><th className="py-2">Title</th><th>Vertical</th><th>Kind</th><th>Deal</th><th>Chunks</th><th>Retrieval</th><th>Status</th></tr>
+          <thead className="bg-white/[0.03] text-xs uppercase tracking-wide text-zinc-500">
+            <tr><th className="px-3 py-2.5">Title</th><th>Vertical</th><th>Kind</th><th>Chunks</th><th>Review</th><th className="pr-3">Status</th></tr>
           </thead>
           <tbody>
-            {docs.map((d) => (
-              <tr key={d.id} onClick={() => setOpenId(d.id)} className="cursor-pointer border-t border-white/10 hover:bg-white/5">
-                <td className="py-2 pr-2">{d.title ?? "(untitled)"}</td>
+            {shown.map((d) => (
+              <tr key={d.id} onClick={() => setOpenId(d.id)} className="cursor-pointer border-t border-white/[0.06] hover:bg-white/5">
+                <td className="px-3 py-2.5 font-medium text-zinc-100">{d.title ?? "(untitled)"}</td>
                 <td className="pr-2 text-zinc-400">{d.vertical}</td>
                 <td className="pr-2 text-zinc-400">{d.doc_kind}</td>
-                <td className="pr-2 text-zinc-400">{d.deal_type}</td>
-                <td className="pr-2">{d.chunk_count}</td>
-                <td className="pr-2">{d.sanitized ? <span className="text-emerald-400">sanitized</span> : <span className="text-amber-400">unsanitized</span>}</td>
-                <td><StatusPill s={d.status} /></td>
+                <td className="pr-2 tabular-nums text-zinc-400">{d.chunk_count}</td>
+                <td className="pr-2"><SanitizeBadge sanitized={d.sanitized} /></td>
+                <td className="pr-3"><StatusPill s={d.status} /></td>
               </tr>
             ))}
-            {!docs.length && <tr><td colSpan={7} className="py-6 text-center text-zinc-500">No documents yet.</td></tr>}
+            {!shown.length && <tr><td colSpan={6} className="py-8 text-center text-zinc-500">{docs.length ? "None in this vertical." : "No documents yet — add some from the Upload tab."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -351,27 +376,35 @@ function LibraryView() {
 
 function DocDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [chunks, setChunks] = useState<Chunk[]>([]);
+  const [chunkTotal, setChunkTotal] = useState(0);
   const [title, setTitle] = useState<string>("");
   const [sanitized, setSanitized] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
     const res = await fetch(`/api/admin/corpus/${id}`);
     if (res.ok) {
-      const body = await res.json() as { document: { title: string | null; sanitized: boolean }; chunks: Chunk[] };
+      const body = await res.json() as { document: { title: string | null; sanitized: boolean }; chunks: Chunk[]; chunk_total?: number };
       setTitle(body.document.title ?? "(untitled)");
       setSanitized(!!body.document.sanitized);
       setChunks(body.chunks);
+      setChunkTotal(body.chunk_total ?? body.chunks.length);
     }
+    setLoading(false);
   }, [id]);
   useEffect(() => { void load(); }, [load]);
 
   async function markSanitized() {
-    if (!confirm("Confirm all party names and identifying details have been removed from this document. It will then be eligible for retrieval.")) return;
+    if (!confirm("Confirm this document carries no private party names or personal details. It will then be eligible to feed the AI legal check.")) return;
+    setSaving(true);
     await fetch(`/api/admin/corpus/${id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sanitized: true }),
     });
     setSanitized(true);
+    setSaving(false);
   }
 
   async function saveChunk(c: Chunk) {
@@ -400,20 +433,31 @@ function DocDetail({ id, onBack }: { id: string; onBack: () => void }) {
     setChunks((p) => p.map((x) => (x.id === cid ? { ...x, ...patch } : x)));
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <button className={btnGhost} onClick={onBack}>← Back</button>
+        <div className="h-6 w-64 max-w-full animate-pulse rounded bg-white/10" />
+        {[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-white/5" />)}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button className={btnGhost} onClick={onBack}>← Back</button>
         <div className="flex gap-2">
           {sanitized
-            ? <span className="inline-flex items-center rounded-lg border border-emerald-500/30 px-3 py-2 text-sm text-emerald-400">Sanitized ✓ (retrievable)</span>
-            : <button className={btnGhost} onClick={markSanitized}>Mark sanitized</button>}
+            ? <span className="inline-flex items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">Sanitized ✓</span>
+            : <button className={btnGhost} disabled={saving} onClick={markSanitized}>{saving ? "Saving…" : "Mark sanitized"}</button>}
           <button className={btnGhost} disabled={busy} onClick={reprocess}>{busy ? "Reprocessing…" : "Reprocess"}</button>
           <button className={btnGhost} onClick={delDoc}>Delete doc</button>
         </div>
       </div>
       <h2 className="text-lg font-medium">{title}</h2>
-      {!sanitized && <p className="text-sm text-amber-400">Unsanitized — excluded from retrieval until party names/identifying details are confirmed removed.</p>}
+      {!sanitized && <p className="text-sm text-amber-400">Awaiting review — held out of the AI legal check until you confirm it carries no private party names or personal details.</p>}
+      <p className="text-xs text-zinc-500">{chunkTotal} chunk{chunkTotal === 1 ? "" : "s"}{chunkTotal > chunks.length ? ` · showing first ${chunks.length}` : ""}</p>
       {chunks.map((c) => (
         <div key={c.id} className="rounded-xl border border-white/10 p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -438,7 +482,7 @@ function DocDetail({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
-function LinkView() {
+function LinkView({ onSaved }: { onSaved: () => void }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [docKind, setDocKind] = useState("clause_note");
@@ -455,7 +499,7 @@ function LinkView() {
         body: JSON.stringify({ url: url.trim(), title, doc_kind: docKind, vertical }),
       });
       const body = await res.json() as { status?: string; chunk_count?: number; error?: string };
-      if (res.ok) { setUrl(""); setTitle(""); setMsg(`Ingested — ${body.status} · ${body.chunk_count} chunks. Sanitize it in Library to make it retrievable.`); }
+      if (res.ok) { setUrl(""); setTitle(""); setMsg(`Ingested — ${body.status} · ${body.chunk_count} chunks. Sanitize it in Library to make it retrievable.`); onSaved(); }
       else setMsg(body.error ?? "Could not ingest.");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not ingest.");
@@ -482,7 +526,7 @@ function LinkView() {
   );
 }
 
-function NoteView() {
+function NoteView({ onSaved }: { onSaved: () => void }) {
   const [text, setText] = useState("");
   const [dealType, setDealType] = useState("other");
   const [vertical, setVertical] = useState("creator");
@@ -498,7 +542,7 @@ function NoteView() {
       body: JSON.stringify({ noteText: text, deal_type: dealType, vertical, title }),
     });
     setBusy(false);
-    if (res.ok) { setText(""); setTitle(""); setMsg("Saved as founder-approved knowledge."); }
+    if (res.ok) { setText(""); setTitle(""); setMsg("Saved as founder-approved knowledge."); onSaved(); }
     else setMsg("Could not save.");
   }
 
@@ -521,7 +565,23 @@ function NoteView() {
   );
 }
 
+function Dot({ c }: { c: string }) {
+  return <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />;
+}
+
+function SanitizeBadge({ sanitized }: { sanitized: boolean }) {
+  return sanitized
+    ? <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">Sanitized</span>
+    : <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">Awaiting review</span>;
+}
+
 function StatusPill({ s }: { s: string }) {
-  const color = s === "ready" ? "text-emerald-400" : s === "needs_review" ? "text-amber-400" : s === "failed" ? "text-red-400" : "text-zinc-400";
-  return <span className={`text-xs ${color}`}>{s}</span>;
+  const map: Record<string, string> = {
+    ready: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    needs_review: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    processing: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+    failed: "border-red-500/30 bg-red-500/10 text-red-300",
+  };
+  const label = s === "needs_review" ? "needs review" : s;
+  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${map[s] ?? "border-white/15 bg-white/5 text-zinc-300"}`}>{label}</span>;
 }
