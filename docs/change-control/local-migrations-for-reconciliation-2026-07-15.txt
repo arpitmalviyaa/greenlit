@@ -1,0 +1,715 @@
+
+========== supabase/migrations/034_tighten_profile_insert_policies.sql ==========
+-- Phase 0.4 security sweep: INSERT policies on profiles/user_profiles were
+-- WITH CHECK (true), letting any client insert arbitrary rows. Profile rows
+-- are created by the handle_new_user trigger (SECURITY DEFINER) and the
+-- service-role client, both of which bypass RLS — so client INSERT only
+-- needs to cover a user inserting their own row.
+
+drop policy if exists "profile_insert" on public.profiles;
+create policy "profile_insert" on public.profiles
+  for insert with check (id = auth.uid());
+
+drop policy if exists "Users can insert their own profile" on public.user_profiles;
+create policy "Users can insert their own profile" on public.user_profiles
+  for insert with check (user_id = auth.uid());
+
+========== supabase/migrations/035_corpus.sql ==========
+-- 035_corpus.sql — Q1 Corpus data layer (Day-0 sprint)
+--
+-- House knowledge store: contracts, disputes, judgments, negotiations, clause
+-- notes and founder annotations that make every analysis smarter. This is NOT
+-- tenant data — it is Greenlit's own reference corpus. Access is service-role
+-- only: RLS is enabled with NO policies for the authenticated/anon roles, so the
+-- client sees zero rows. The server (service role) bypasses RLS and is the sole
+-- reader/writer.
+--
+-- DO NOT auto-apply in CI without review. Create only; apply manually.
+--
+-- Retrieval today = Postgres full-text search + metadata filters. The nullable
+-- embedding vector(1536) column is added now (unpopulated) so pgvector semantic
+-- search can be layered in later WITHOUT a schema migration.
+
+create extension if not exists "uuid-ossp";
+create extension if not exists vector;
+
+-- ── Enums ────────────────────────────────────────────────────────────────────
+do $$ begin
+  create type corpus_doc_kind as enum
+    ('contract', 'dispute', 'judgment', 'negotiation', 'clause_note', 'founder_annotation');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type corpus_deal_type as enum
+    ('paid_promotion', 'barter', 'ugc_license', 'ambassadorship', 'representation', 'platform', 'other');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type corpus_doc_status as enum
+    ('processing', 'ready', 'needs_review', 'failed');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type corpus_chunk_stance as enum
+    ('market_standard', 'creator_favorable', 'brand_aggressive', 'dispute_source', 'founder_approved');
+exception when duplicate_object then null; end $$;
+
+-- ── corpus_documents ─────────────────────────────────────────────────────────
+create table if not exists corpus_documents (
+  id             uuid primary key default uuid_generate_v4(),
+  uploaded_by    uuid references auth.users(id) on delete set null,
+  doc_kind       corpus_doc_kind not null,
+  deal_type      corpus_deal_type not null default 'other',
+  title          text,
+  source_note    text,              -- where it came from
+  founder_note   text,              -- the founder's commentary
+  file_path      text,              -- storage key in the `corpus` bucket (null for note-only docs)
+  extracted_text text,
+  status         corpus_doc_status not null default 'processing',
+  created_at     timestamptz not null default now()
+);
+
+-- ── corpus_chunks ────────────────────────────────────────────────────────────
+create table if not exists corpus_chunks (
+  id           uuid primary key default uuid_generate_v4(),
+  document_id  uuid not null references corpus_documents(id) on delete cascade,
+  chunk_index  int not null,
+  content      text not null,
+  clause_type  text,               -- usage_rights, exclusivity, payment_terms, indemnity, termination, morality, ip_assignment, confidentiality, deliverables, ...
+  risk_note    text,               -- what went wrong / why this matters
+  stance       corpus_chunk_stance not null default 'market_standard',
+  embedding    vector(1536),       -- nullable, unpopulated tonight (Week-1: pgvector)
+  status       corpus_doc_status not null default 'ready',
+  tsv          tsvector generated always as (
+                 to_tsvector('english', coalesce(content, '') || ' ' || coalesce(risk_note, ''))
+               ) stored,
+  created_at   timestamptz not null default now()
+);
+
+-- ── analysis_corpus_refs ─────────────────────────────────────────────────────
+-- Which corpus chunks fired for a given analysis. Future eval + "what knowledge
+-- fired" debugging surface. Service-role only, same as the corpus itself.
+create table if not exists analysis_corpus_refs (
+  id           uuid primary key default uuid_generate_v4(),
+  feature      text not null,      -- e.g. counsel.redflags
+  contract_id  uuid,               -- soft ref; no FK so a purge of the corpus/contract never blocks logging
+  chunk_ids    uuid[] not null default '{}',
+  query        text,
+  created_at   timestamptz not null default now()
+);
+
+-- ── Indexes ──────────────────────────────────────────────────────────────────
+create index if not exists idx_corpus_chunks_tsv        on corpus_chunks using gin (tsv);
+create index if not exists idx_corpus_chunks_document   on corpus_chunks (document_id);
+create index if not exists idx_corpus_chunks_clause     on corpus_chunks (clause_type);
+create index if not exists idx_corpus_chunks_stance     on corpus_chunks (stance);
+create index if not exists idx_corpus_documents_deal    on corpus_documents (deal_type);
+create index if not exists idx_corpus_documents_kind    on corpus_documents (doc_kind);
+create index if not exists idx_corpus_documents_status  on corpus_documents (status);
+create index if not exists idx_analysis_corpus_refs_contract on analysis_corpus_refs (contract_id);
+
+-- ── RLS: service-role only, no client access ─────────────────────────────────
+-- Enable RLS but define NO policies for authenticated/anon → those roles get
+-- zero rows on every operation. The service role bypasses RLS entirely.
+alter table corpus_documents      enable row level security;
+alter table corpus_chunks         enable row level security;
+alter table analysis_corpus_refs  enable row level security;
+
+-- Belt-and-suspenders: explicit deny-all policies so intent is legible in the
+-- policy list and a future permissive policy can't be added by accident without
+-- someone first removing these.
+drop policy if exists "corpus_documents deny all" on corpus_documents;
+create policy "corpus_documents deny all" on corpus_documents
+  for all to authenticated, anon using (false) with check (false);
+
+drop policy if exists "corpus_chunks deny all" on corpus_chunks;
+create policy "corpus_chunks deny all" on corpus_chunks
+  for all to authenticated, anon using (false) with check (false);
+
+drop policy if exists "analysis_corpus_refs deny all" on analysis_corpus_refs;
+create policy "analysis_corpus_refs deny all" on analysis_corpus_refs
+  for all to authenticated, anon using (false) with check (false);
+
+-- ── Storage bucket ───────────────────────────────────────────────────────────
+-- Private `corpus` bucket, outside every tenant workspace. No client policies:
+-- only the service role (bypasses RLS) reads/writes objects here.
+insert into storage.buckets (id, name, public)
+values ('corpus', 'corpus', false)
+on conflict (id) do nothing;
+
+========== supabase/migrations/20260707000000_marketing_consent.sql ==========
+-- Store marketing/newsletter consent captured at signup (DPDPA: consent-based).
+-- The signup form passes marketing_opt_in in user metadata; the trigger copies it.
+
+alter table public.profiles
+  add column if not exists marketing_opt_in boolean not null default true;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, role, name, email, onboarding_done, marketing_opt_in)
+  values (
+    new.id,
+    'agency_admin',
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    new.email,
+    false,
+    coalesce((new.raw_user_meta_data->>'marketing_opt_in')::boolean, true)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+========== supabase/migrations/20260708000000_vertical_aware_schema.sql ==========
+-- 20260708000000_vertical_aware_schema.sql — Phase 1: vertical-aware corpus.
+--
+-- Adds a second vertical (Indian startup founders) alongside creators on the SAME
+-- engine. A `vertical` partitions house-knowledge so creator and startup corpora
+-- never co-retrieve; 'general' is cross-cutting knowledge shared by all.
+--
+-- Additive only. Existing rows default to 'creator' — nothing creator-facing changes.
+-- DO NOT auto-apply in CI. Apply to a preview branch, prove isolation, then prod.
+
+-- ── Enum ─────────────────────────────────────────────────────────────────────
+do $$ begin
+  create type vertical as enum ('creator', 'startup', 'litigation', 'general');
+exception when duplicate_object then null; end $$;
+
+-- ── corpus_documents / corpus_chunks: vertical column ────────────────────────
+-- `add column ... default 'creator'` backfills every existing row to 'creator'
+-- in one shot (Postgres 11+ metadata-only), so no separate UPDATE is needed.
+-- vertical is denormalized onto corpus_chunks so retrieval filters at the chunk
+-- level without a join.
+alter table corpus_documents add column if not exists vertical vertical not null default 'creator';
+alter table corpus_chunks    add column if not exists vertical vertical not null default 'creator';
+
+create index if not exists idx_corpus_chunks_vertical    on corpus_chunks (vertical);
+create index if not exists idx_corpus_documents_vertical on corpus_documents (vertical);
+
+-- ── contracts: sub_type ──────────────────────────────────────────────────────
+-- Deliberately a nullable text column, NOT a widened deal_type enum: creator
+-- flows leave it null; startup flows (Phase 2) write sub_type values validated in
+-- application code. Promoted to a real enum only when the public product builds.
+alter table contracts add column if not exists sub_type text;
+
+========== supabase/migrations/20260708000001_startup_analysis_and_sanitization.sql ==========
+-- 20260708000001_startup_analysis_and_sanitization.sql
+-- Phase 2/3/4: startup document review + data-room matters + Founder Readiness Memo
+-- (with a human review gate), and the corpus sanitization gate.
+--
+-- Additive only. Startup tables are service-role-only (RLS enabled, deny-all for
+-- client roles) — the exact pattern corpus tables use, since this vertical has no
+-- tenant-facing UI. Workspace isolation is by `workspace_id` (query-scoped by the
+-- admin surface); no FK to organisations so the vertical stays decoupled from the
+-- creator schema.
+-- ponytail: workspace_id has no FK + no same_org RLS. Add both if the startup
+-- vertical ever gets tenant-facing reads (out of scope now).
+
+-- ── Enum: memo review gate ───────────────────────────────────────────────────
+do $$ begin
+  create type startup_memo_status as enum ('draft', 'reviewed');
+exception when duplicate_object then null; end $$;
+
+-- ── startup_matters ──────────────────────────────────────────────────────────
+-- One matter groups N documents. A single-document review is a matter with one doc.
+create table if not exists startup_matters (
+  id              uuid primary key default uuid_generate_v4(),
+  workspace_id    uuid,                      -- founder's workspace (no FK; isolation by query)
+  created_by      uuid references auth.users(id) on delete set null,
+  title           text not null,
+  sub_type        text,                      -- 'data_room' for multi-doc; else the single doc's sub_type
+  founder_context jsonb,                     -- { stage, round, concerns }
+  created_at      timestamptz not null default now()
+);
+
+-- ── startup_documents ────────────────────────────────────────────────────────
+create table if not exists startup_documents (
+  id             uuid primary key default uuid_generate_v4(),
+  matter_id      uuid not null references startup_matters(id) on delete cascade,
+  workspace_id   uuid,
+  sub_type       text not null,              -- term_sheet | sha | ssa | safe_ccps | esop | ... (validated in app code)
+  title          text,
+  file_path      text,                       -- storage key in the `startup-docs` bucket
+  extracted_text text,
+  doc_analysis   jsonb,                       -- per-doc axis findings + extracted key_terms
+  status         text not null default 'processing',   -- processing | ready | failed
+  created_at     timestamptz not null default now()
+);
+
+-- ── startup_memos ────────────────────────────────────────────────────────────
+-- The Founder Readiness Memo. Generated in DRAFT; only REVIEWED unlocks export.
+create table if not exists startup_memos (
+  id            uuid primary key default uuid_generate_v4(),
+  matter_id     uuid not null references startup_matters(id) on delete cascade,
+  workspace_id  uuid,
+  memo_json     jsonb not null,
+  status        startup_memo_status not null default 'draft',
+  prepared_for  text,
+  document_label text,                        -- "document reviewed" header field
+  reviewed_by   text,                         -- advocate name (editable header field)
+  reviewer_user uuid references auth.users(id) on delete set null,
+  reviewed_at   timestamptz,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+create index if not exists idx_startup_documents_matter on startup_documents (matter_id);
+create index if not exists idx_startup_memos_matter      on startup_memos (matter_id);
+create index if not exists idx_startup_matters_workspace on startup_matters (workspace_id);
+
+-- ── RLS: service-role only, no client access (mirrors corpus tables) ─────────
+alter table startup_matters   enable row level security;
+alter table startup_documents enable row level security;
+alter table startup_memos     enable row level security;
+
+drop policy if exists "startup_matters deny all" on startup_matters;
+create policy "startup_matters deny all" on startup_matters
+  for all to authenticated, anon using (false) with check (false);
+drop policy if exists "startup_documents deny all" on startup_documents;
+create policy "startup_documents deny all" on startup_documents
+  for all to authenticated, anon using (false) with check (false);
+drop policy if exists "startup_memos deny all" on startup_memos;
+create policy "startup_memos deny all" on startup_memos
+  for all to authenticated, anon using (false) with check (false);
+
+-- ── Storage bucket for founder documents ─────────────────────────────────────
+insert into storage.buckets (id, name, public)
+values ('startup-docs', 'startup-docs', false)
+on conflict (id) do nothing;
+
+-- ── D: corpus sanitization gate ──────────────────────────────────────────────
+-- Unsanitized docs must never appear in retrieval. New uploads default to false
+-- (require an explicit sanitize confirmation); existing corpus is already curated,
+-- so backfill it to true — retrieval of the current corpus is unchanged.
+alter table corpus_documents add column if not exists sanitized boolean not null default false;
+update corpus_documents set sanitized = true where sanitized = false;
+
+========== supabase/migrations/20260712000000_move_extensions_out_of_public.sql ==========
+-- Move pgvector + pg_trgm out of the public schema into `extensions`.
+-- Already applied out-of-band to PROD via the Supabase API; this file reconciles
+-- repo/staging with prod so the three stop drifting.
+--
+-- Idempotent: each ALTER only fires if the extension is currently in `public`.
+-- Supabase roles already carry `extensions` in their search_path, so retrieval
+-- and index DDL (which never hardcode a schema) keep working after the move.
+
+create schema if not exists extensions;
+
+do $$
+begin
+  if exists (
+    select 1 from pg_extension e
+    join pg_namespace n on n.oid = e.extnamespace
+    where e.extname = 'vector' and n.nspname = 'public'
+  ) then
+    alter extension vector set schema extensions;
+  end if;
+
+  if exists (
+    select 1 from pg_extension e
+    join pg_namespace n on n.oid = e.extnamespace
+    where e.extname = 'pg_trgm' and n.nspname = 'public'
+  ) then
+    alter extension pg_trgm set schema extensions;
+  end if;
+end $$;
+
+========== supabase/migrations/20260712010000_legal_authority_layer.sql ==========
+-- Legal-authority layer: the corpus grows first-class support for acts, statutes,
+-- rules, regulations, notifications, circulars, case law, and guidelines.
+--
+-- doc_kind IS the authority type (one source of truth — no parallel
+-- authority_type column; the enum carries it).
+-- Chunks denormalize citation + section_ref so retrieval can cite the exact
+-- provision without a join back to the document.
+
+-- ── extend corpus_doc_kind ────────────────────────────────────────────────────
+-- ADD VALUE IF NOT EXISTS is idempotent; values are not used in this migration
+-- (PG forbids using a value added in the same transaction).
+alter type corpus_doc_kind add value if not exists 'act';
+alter type corpus_doc_kind add value if not exists 'statute';
+alter type corpus_doc_kind add value if not exists 'rule';
+alter type corpus_doc_kind add value if not exists 'regulation';
+alter type corpus_doc_kind add value if not exists 'notification';
+alter type corpus_doc_kind add value if not exists 'circular';
+alter type corpus_doc_kind add value if not exists 'case_law';
+alter type corpus_doc_kind add value if not exists 'guideline';
+
+-- ── authority metadata on corpus_documents ────────────────────────────────────
+alter table corpus_documents add column if not exists jurisdiction     text not null default 'IN';
+alter table corpus_documents add column if not exists citation         text;          -- "Consumer Protection Act, 2019, s.2(28)"
+alter table corpus_documents add column if not exists section_ref      text;          -- when the doc IS one provision
+alter table corpus_documents add column if not exists issuing_body     text;          -- "MeitY", "SEBI", "Supreme Court of India"
+alter table corpus_documents add column if not exists effective_date   date;
+alter table corpus_documents add column if not exists superseded_by    uuid references corpus_documents(id) on delete set null;
+alter table corpus_documents add column if not exists source_url       text;
+-- Retrieval rank weight: acts/statutes (1.0) > rules/regulations (0.9) >
+-- notifications/circulars (0.8) > case law (0.7) > guidelines (0.6) >
+-- house knowledge (0.5, the default). Set by ingest, tunable per doc.
+alter table corpus_documents add column if not exists authority_weight numeric not null default 0.5;
+
+-- ── provision citation on corpus_chunks ───────────────────────────────────────
+alter table corpus_chunks add column if not exists citation    text;
+alter table corpus_chunks add column if not exists section_ref text;
+
+-- Superseded authorities must not out-rank their replacement; retrieval filters
+-- on superseded_by is null for authority kinds (enforced in code, indexed here).
+create index if not exists idx_corpus_documents_superseded on corpus_documents (superseded_by) where superseded_by is not null;
+
+========== supabase/migrations/20260712020000_compliance_findings.sql ==========
+-- Grounded compliance layer: structured statutory findings emitted by
+-- complianceCheck (lib/corpus/compliance.ts). Every finding cites the authority
+-- chunks that grounded it (chunk_ids) — un-grounded findings are dropped in code.
+--
+-- Service-role only (like the corpus itself): RLS enabled with NO policies is
+-- intentional — the anon/authenticated roles must never read raw findings;
+-- they arrive through the API response of the analysis that produced them.
+
+create table if not exists compliance_findings (
+  id               uuid primary key default uuid_generate_v4(),
+  contract_id      uuid,             -- null for free-text queries; FK added below when contracts exists
+  feature          text not null,    -- 'counsel.analyse' | 'counsel.redflags' | ...
+  vertical         vertical not null default 'creator',
+  issue            text not null,
+  severity         text not null check (severity in ('low','medium','high','critical')),
+  statute_citation text not null,
+  section_ref      text,
+  explanation      text not null,
+  suggested_fix    text,
+  confidence       numeric not null check (confidence >= 0 and confidence <= 1),
+  chunk_ids        uuid[] not null,  -- grounding: the cited corpus_chunks
+  query            text,             -- free-text query when contract_id is null
+  created_at       timestamptz not null default now()
+);
+
+-- The staging corpus project has no contracts table; only add the FK where it exists.
+do $$
+begin
+  if to_regclass('public.contracts') is not null
+     and not exists (select 1 from pg_constraint where conname = 'compliance_findings_contract_id_fkey') then
+    alter table compliance_findings
+      add constraint compliance_findings_contract_id_fkey
+      foreign key (contract_id) references contracts(id) on delete cascade;
+  end if;
+end $$;
+
+alter table compliance_findings enable row level security;
+
+create index if not exists idx_compliance_findings_contract on compliance_findings (contract_id) where contract_id is not null;
+
+========== supabase/migrations/20260712030000_finding_feedback.sql ==========
+-- Learning loop (retrieval-side, NOT model training): reviewer verdicts on
+-- compliance findings become per-chunk feedback scores that nudge retrieval
+-- ranking. Golden query→authority pairs for the eval script are derived from
+-- accepted feedback (see scripts/corpus-eval.ts).
+
+create table if not exists finding_feedback (
+  id          uuid primary key default uuid_generate_v4(),
+  finding_id  uuid not null references compliance_findings(id) on delete cascade,
+  verdict     text not null check (verdict in ('accepted','rejected')),
+  note        text,
+  user_id     uuid,  -- auth.users id; plain uuid (no FK) so staging/prod stay portable
+  created_at  timestamptz not null default now()
+);
+
+-- Service-role only, same posture as compliance_findings.
+alter table finding_feedback enable row level security;
+
+create index if not exists idx_finding_feedback_finding on finding_feedback (finding_id);
+
+-- Per-chunk feedback score in [-1, 1]: mean of accepted(+1)/rejected(-1) over
+-- every finding that cited the chunk. Retrieval adds a small nudge from this.
+create or replace view chunk_feedback_scores
+with (security_invoker = true) as
+select
+  unnest(cf.chunk_ids)                                                   as chunk_id,
+  avg(case ff.verdict when 'accepted' then 1.0 else -1.0 end)::numeric   as score,
+  count(*)                                                               as n
+from finding_feedback ff
+join compliance_findings cf on cf.id = ff.finding_id
+group by 1;
+
+========== supabase/migrations/20260712040000_vector_search.sql ==========
+-- True vector search: hnsw index + match RPC for the hybrid (tsv + vector RRF)
+-- retrieval branch in lib/corpus/retrieve.ts.
+--
+-- pgvector lives in the `extensions` schema (20260712000000), so the operator
+-- and opclass are schema-qualified — this migration must work under any
+-- search_path.
+
+-- hnsw over cosine distance. Beats ivfflat at this corpus size (no training
+-- step, fine for < ~1M rows).
+create index if not exists idx_corpus_chunks_embedding
+  on corpus_chunks using hnsw (embedding extensions.vector_cosine_ops);
+
+-- Vector match with the same visibility gates as tsv retrieval: ready + sanitized
+-- + not superseded + vertical scope. kinds narrows to authority docs when the
+-- compliance layer calls it. SECURITY INVOKER — only the service role reaches
+-- this (RLS on the underlying tables blocks anon/authenticated regardless).
+create or replace function match_corpus_chunks(
+  query_embedding extensions.vector(1536),
+  match_count     int    default 12,
+  verticals       text[] default array['creator','general'],
+  kinds           text[] default null
+)
+returns table (
+  id uuid, document_id uuid, content text, clause_type text, risk_note text,
+  stance text, citation text, section_ref text,
+  deal_type text, doc_kind text, source_url text, authority_weight numeric,
+  distance double precision
+)
+language sql
+stable
+set search_path = ''
+as $$
+  select c.id, c.document_id, c.content, c.clause_type, c.risk_note,
+         c.stance::text, c.citation, c.section_ref,
+         d.deal_type::text, d.doc_kind::text, d.source_url, d.authority_weight,
+         (c.embedding operator(extensions.<=>) query_embedding)::double precision as distance
+  from public.corpus_chunks c
+  join public.corpus_documents d on d.id = c.document_id
+  where c.status = 'ready'
+    and d.status = 'ready'
+    and d.sanitized = true
+    and d.superseded_by is null
+    and c.vertical::text = any(verticals)
+    and c.embedding is not null
+    and (kinds is null or d.doc_kind::text = any(kinds))
+  order by c.embedding operator(extensions.<=>) query_embedding
+  limit match_count;
+$$;
+
+-- Callable by the service role only.
+revoke execute on function match_corpus_chunks(extensions.vector, int, text[], text[]) from public, anon, authenticated;
+
+========== supabase/migrations/20260712050000_security_advisor_closeout.sql ==========
+-- Close the remaining Supabase security-advisor findings (2026-07-12 run).
+--
+-- PROD-ONLY migration: the corpus staging project (xjlhtwsbfpsxwsnkkkzz) has
+-- none of these functions/tables — do not apply it there.
+--
+-- 1. function_search_path_mutable (9 fns): pin search_path='' and
+--    schema-qualify bodies. CREATE OR REPLACE keeps triggers/policies bound.
+-- 2. platform_creator_overview: EXECUTE revoked from authenticated — the
+--    /api/master/overview route now calls it with the service role after its
+--    own platform_admins check (the function keeps its internal guard too).
+-- 3. analytics_events / scope_items: RLS-no-policy is INTENTIONAL (service-role
+--    only); documented via table comments.
+-- 4. early_access: the always-true anon INSERT policy has no code path using it
+--    (every "Get early access" CTA routes to /signup) — dropped.
+
+-- ── 1. search_path pinning ────────────────────────────────────────────────────
+
+create or replace function public.get_user_org_id()
+returns uuid
+language sql
+stable
+set search_path = ''
+as $$
+  select organisation_id from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.get_user_role()
+returns public.user_role
+language sql
+stable
+set search_path = ''
+as $$
+  select role from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.same_org(record_org_id uuid)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select record_org_id = public.get_user_org_id()
+$$;
+
+create or replace function public.handle_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin new.updated_at = now(); return new; end;
+$$;
+
+create or replace function public.update_updated_at_column()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin new.updated_at = now(); return new; end;
+$$;
+
+create or replace function public.update_claims_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin new.updated_at = now(); return new; end;
+$$;
+
+create or replace function public.fn_approval_to_timeline()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_sow_id uuid;
+begin
+  if new.contract_id is not null then
+    if tg_op = 'INSERT' then
+      insert into public.evidence_timeline (
+        organisation_id, contract_id, event_type, title, actor_id, reference_id, reference_table
+      ) values (
+        new.organisation_id, new.contract_id, 'final_check_started',
+        'Final Contract Check started: ' || new.title,
+        new.submitted_by, new.id, 'approval_requests'
+      );
+    elsif new.status = 'approved' and old.status <> 'approved' then
+      insert into public.evidence_timeline (
+        organisation_id, contract_id, event_type, title, actor_id, reference_id, reference_table
+      ) values (
+        new.organisation_id, new.contract_id, 'contract_approval_granted',
+        'Contract approval granted: ' || new.title,
+        new.assigned_to, new.id, 'approval_requests'
+      );
+    elsif new.status = 'revision_requested' and old.status <> 'revision_requested' then
+      insert into public.evidence_timeline (
+        organisation_id, contract_id, event_type, title, actor_id, reference_id, reference_table
+      ) values (
+        new.organisation_id, new.contract_id, 'revision_requested',
+        'Contract revision requested: ' || new.title,
+        new.assigned_to, new.id, 'approval_requests'
+      );
+    end if;
+    return new;
+  end if;
+
+  v_sow_id := coalesce(new.sow_id, (
+    select sow_id from public.sow_deliverables where id = new.deliverable_id limit 1
+  ));
+  if v_sow_id is null then return new; end if;
+
+  if tg_op = 'INSERT' then
+    insert into public.evidence_timeline (organisation_id, sow_id, event_type, title, actor_id, reference_id, reference_table)
+    values (
+      new.organisation_id, v_sow_id,
+      case when new.deliverable_id is not null then 'deliverable_submitted' else 'sow_created' end,
+      'Approval submitted: ' || new.title, new.submitted_by, new.id, 'approval_requests'
+    );
+  elsif new.status = 'approved' and old.status <> 'approved' then
+    insert into public.evidence_timeline (organisation_id, sow_id, event_type, title, actor_id, reference_id, reference_table)
+    values (new.organisation_id, v_sow_id, 'approval_granted', 'Approval granted: ' || new.title, new.assigned_to, new.id, 'approval_requests');
+  elsif new.status = 'revision_requested' and old.status <> 'revision_requested' then
+    insert into public.evidence_timeline (organisation_id, sow_id, event_type, title, actor_id, reference_id, reference_table)
+    values (new.organisation_id, v_sow_id, 'revision_requested', 'Revision requested: ' || new.title, new.assigned_to, new.id, 'approval_requests');
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.fn_invoice_paid_timeline()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.status = 'paid' and old.status <> 'paid' and new.sow_id is not null then
+    insert into public.evidence_timeline (organisation_id, sow_id, event_type, title, actor_id, reference_id, reference_table)
+    values (new.organisation_id, new.sow_id, 'payment_made', 'Payment received for invoice ' || new.invoice_number, new.created_by, new.id, 'invoices');
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.fn_delivery_lock_timeline()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.contract_id is not null then
+    if tg_op = 'UPDATE' and new.lock_status = 'complete' and old.lock_status <> 'complete' then
+      insert into public.evidence_timeline (
+        organisation_id, contract_id, event_type, title, actor_id, reference_id, reference_table
+      ) values (
+        new.organisation_id, new.contract_id, 'final_check_completed',
+        'Final Contract Check cleared', new.locked_by, new.id, 'delivery_locks'
+      );
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    insert into public.evidence_timeline (organisation_id, sow_id, event_type, title, actor_id, reference_id, reference_table)
+    values (new.organisation_id, new.sow_id, 'delivery_locked', 'Delivery locked for SOW', new.locked_by, new.id, 'delivery_locks');
+  end if;
+  return new;
+end;
+$$;
+
+-- ── 2. platform_creator_overview: service-role only ──────────────────────────
+-- The old body self-gated on auth.uid() ∈ platform_admins, which returns zero
+-- rows under the service role (auth.uid() is null there). The API route
+-- (/api/master/overview) is now the gate: it checks platform_admins with the
+-- caller's session, then invokes this with the service role. EXECUTE revoked
+-- from every client-facing role, so the internal guard is redundant — removed.
+create or replace function public.platform_creator_overview()
+returns table(profile_id uuid, creator_name text, email text, organisation_name text, contract_count bigint, pending_count bigint, last_contract_at timestamptz)
+language sql
+security definer
+set search_path = ''
+as $$
+  select
+    p.id,
+    p.name,
+    p.email,
+    o.name,
+    count(c.id),
+    count(c.id) filter (where c.status = 'pending_review'),
+    max(c.created_at)
+  from public.profiles p
+  left join public.organisations o on o.id = p.organisation_id
+  left join public.contracts c on c.uploaded_by = p.id
+  where p.role = 'creator'
+  group by p.id, p.name, p.email, o.name;
+$$;
+
+revoke execute on function public.platform_creator_overview() from public, anon, authenticated;
+
+-- ── 3. document intentional service-role-only tables ─────────────────────────
+comment on table public.analytics_events is
+  'Service-role only (RLS on, zero policies — intentional). Writes come exclusively from /api/public/event with an allowlisted event set.';
+comment on table public.scope_items is
+  'Service-role only (RLS on, zero policies — intentional). Legacy scope-monitor data retained read-only; the feature flag is OFF and no client path touches it.';
+
+-- ── 4. early_access: drop the dead always-true anon INSERT policy ────────────
+drop policy if exists "Anon users can insert only" on public.early_access;
+
+========== supabase/migrations/20260713000000_service_role_function_grants.sql ==========
+-- Post-closeout fix: revoking EXECUTE from PUBLIC (vector_search +
+-- security_advisor_closeout) also stripped the default grant service_role
+-- relied on, locking the ONLY intended caller out of both RPCs. Grant it back
+-- explicitly. Applied to prod and staging on 2026-07-13 (staging got only the
+-- match_corpus_chunks grant — platform_creator_overview doesn't exist there,
+-- hence the guard).
+
+grant execute on function public.match_corpus_chunks(extensions.vector, int, text[], text[]) to service_role;
+
+do $$
+begin
+  if to_regproc('public.platform_creator_overview') is not null then
+    grant execute on function public.platform_creator_overview() to service_role;
+  end if;
+end $$;
