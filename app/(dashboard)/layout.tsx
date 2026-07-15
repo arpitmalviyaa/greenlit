@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { BackButton } from "@/components/ui/back-button";
 import type { UserRole } from "@/types/database.types";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         planName={planName}
       />
       <main className="flex-1 overflow-auto">
+        <div className="px-6 pt-4"><BackButton fallback="/agency" /></div>
         {children}
       </main>
     </div>

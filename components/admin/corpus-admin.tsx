@@ -3,6 +3,7 @@
 // Founder tool — utilitarian, not a product surface. Upload documents, feed
 // quick notes, and curate chunks that sharpen every analysis.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BackButton } from "@/components/ui/back-button";
 
 const DOC_KINDS = ["contract", "dispute", "judgment", "negotiation", "clause_note", "founder_annotation"];
 const AUTHORITY_KINDS = ["act", "statute", "rule", "regulation", "notification", "circular", "case_law", "guideline"];
@@ -43,6 +44,7 @@ export function CorpusAdmin() {
     <div className="min-h-screen bg-[#0a0a0b] text-white">
       <div className={`mx-auto px-4 py-8 ${tab === "graph" ? "max-w-6xl" : "max-w-4xl"}`}>
         <header className="mb-6">
+          <BackButton fallback="/master" className="mb-4" />
           <h1 className="text-2xl font-semibold">Corpus</h1>
           <p className="mt-1 text-sm text-zinc-400">House knowledge — statutes, contracts, judgments, blog links, reviewer notes. Only you see this.</p>
           {docs && (

@@ -5,6 +5,7 @@ import { BookOpen, Database, LogOut, Plus, Trash2, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { BackButton } from "@/components/ui/back-button";
 
 type Creator = {
   profile_id: string; creator_name: string; email: string; organisation_name: string | null;
@@ -57,7 +58,10 @@ export function MasterPortal({ adminName }: { adminName: string }) {
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-        <div><p className="text-xs uppercase tracking-[0.25em] text-zinc-600">Greenlit master</p><h1 className="mt-1 text-lg font-medium">{adminName}</h1></div>
+        <div className="flex items-center gap-4">
+          <BackButton fallback="/agency" />
+          <div><p className="text-xs uppercase tracking-[0.25em] text-zinc-600">Greenlit master</p><h1 className="mt-1 text-lg font-medium">{adminName}</h1></div>
+        </div>
         <button onClick={signOut} className="flex items-center gap-2 text-sm text-zinc-500 hover:text-white"><LogOut className="h-4 w-4" />Sign out</button>
       </header>
       <div className="grid min-h-[calc(100vh-77px)] md:grid-cols-[240px_1fr]">
