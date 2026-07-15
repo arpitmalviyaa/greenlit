@@ -21,16 +21,16 @@ type Chunk = { id: string; chunk_index: number; content: string; clause_type: st
 type Staged = { file: File; doc_kind: string; deal_type: string; vertical: string; title: string; founder_note: string; source_note: string; citation: string; jurisdiction: string; issuing_body: string; effective_date: string; source_url: string; state: "idle" | "uploading" | "done" | "error"; msg?: string };
 
 export function CorpusAdmin() {
-  const [tab, setTab] = useState<"upload" | "link" | "library" | "note">("upload");
-  const label = { upload: "Upload", link: "Link", library: "Library", note: "Quick note" } as const;
+  const [tab, setTab] = useState<"upload" | "link" | "library" | "graph" | "note">("upload");
+  const label = { upload: "Upload", link: "Link", library: "Library", graph: "Graph", note: "Quick note" } as const;
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 text-white">
+    <div className={`mx-auto px-4 py-8 text-white ${tab === "graph" ? "max-w-6xl" : "max-w-4xl"}`}>
       <header className="mb-6">
         <h1 className="text-xl font-semibold">Corpus</h1>
         <p className="text-sm text-zinc-500">House knowledge — contracts, judgments, blog links, reviewer notes. Only you see this.</p>
       </header>
       <nav className="mb-6 flex gap-2">
-        {(["upload", "link", "library", "note"] as const).map((t) => (
+        {(["upload", "link", "library", "graph", "note"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`rounded-lg px-3 py-1.5 text-sm ${tab === t ? "bg-white text-black" : "border border-white/15 text-zinc-300"}`}>
             {label[t]}
@@ -40,7 +40,152 @@ export function CorpusAdmin() {
       {tab === "upload" && <UploadView />}
       {tab === "link" && <LinkView />}
       {tab === "library" && <LibraryView />}
+      {tab === "graph" && <GraphView />}
       {tab === "note" && <NoteView />}
+    </div>
+  );
+}
+
+// ── Graph view ────────────────────────────────────────────────────────────────
+// Obsidian-style force-directed map of the corpus: a central hub → one node per
+// category (grouped from doc_kind) → one node per document. Dependency-free: a
+// tiny spring/repulsion sim settles the layout, rendered as SVG.
+// ponytail: O(n²) repulsion + hand-rolled sim, fine for a few hundred docs.
+// If the corpus ever runs to thousands, swap in d3-force or a quadtree; not now.
+
+const BUCKETS: { key: string; label: string; color: string; kinds: string[] }[] = [
+  { key: "statutes", label: "Statutes", color: "#60a5fa", kinds: ["act", "statute"] },
+  { key: "notifications", label: "Notifications & Rules", color: "#a78bfa", kinds: ["rule", "regulation", "notification", "circular", "guideline"] },
+  { key: "judgements", label: "Judgements", color: "#f472b6", kinds: ["case_law", "judgment", "dispute"] },
+  { key: "contracts", label: "Contracts & Notes", color: "#34d399", kinds: ["contract", "negotiation", "clause_note", "founder_annotation"] },
+];
+function bucketOf(kind: string) {
+  return BUCKETS.find((b) => b.kinds.includes(kind)) ?? BUCKETS[3];
+}
+
+type GNode = {
+  id: string; label: string; type: "hub" | "cat" | "doc"; color: string; r: number;
+  x: number; y: number; vx: number; vy: number; fixed?: boolean; meta?: DocRow;
+};
+
+function GraphView() {
+  const [docs, setDocs] = useState<DocRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hover, setHover] = useState<GNode | null>(null);
+  const [tick, setTick] = useState(0); // re-render as the sim settles
+  const nodesRef = useRef<GNode[]>([]);
+  const linksRef = useRef<[number, number, number][]>([]); // [a, b, restLength]
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/admin/corpus");
+      if (res.ok) setDocs(await res.json() as DocRow[]);
+      setLoading(false);
+    })().catch(() => setLoading(false));
+  }, []);
+
+  const W = 1000, H = 640, CX = W / 2, CY = H / 2;
+
+  // Build nodes + links whenever the doc list changes.
+  useEffect(() => {
+    if (!docs.length) { nodesRef.current = []; linksRef.current = []; return; }
+    const nodes: GNode[] = [{ id: "hub", label: "Corpus", type: "hub", color: "#ffffff", r: 26, x: CX, y: CY, vx: 0, vy: 0, fixed: true }];
+    const links: [number, number, number][] = [];
+    const catIndex = new Map<string, number>();
+    const used = BUCKETS.filter((b) => docs.some((d) => bucketOf(d.doc_kind).key === b.key));
+    used.forEach((b, i) => {
+      const a = (i / used.length) * Math.PI * 2;
+      nodes.push({ id: `cat-${b.key}`, label: b.label, type: "cat", color: b.color, r: 16, x: CX + Math.cos(a) * 170, y: CY + Math.sin(a) * 170, vx: 0, vy: 0 });
+      catIndex.set(b.key, nodes.length - 1);
+      links.push([0, nodes.length - 1, 170]);
+    });
+    docs.forEach((d, i) => {
+      const b = bucketOf(d.doc_kind);
+      const ci = catIndex.get(b.key)!;
+      const a = (i / docs.length) * Math.PI * 2;
+      nodes.push({
+        id: d.id, label: d.title ?? "(untitled)", type: "doc", color: b.color,
+        r: 5 + Math.min(d.chunk_count ?? 0, 60) / 8,
+        x: nodes[ci].x + Math.cos(a) * 90, y: nodes[ci].y + Math.sin(a) * 90, vx: 0, vy: 0, meta: d,
+      });
+      links.push([ci, nodes.length - 1, 90]);
+    });
+    nodesRef.current = nodes;
+    linksRef.current = links;
+    // Settle the layout: repulsion + link springs + gentle centering, alpha-decayed.
+    let alpha = 1, frames = 0;
+    let raf = 0;
+    const step = () => {
+      const ns = nodesRef.current, ls = linksRef.current;
+      for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) {
+        let dx = ns[i].x - ns[j].x, dy = ns[i].y - ns[j].y;
+        let d2 = dx * dx + dy * dy || 0.01; const d = Math.sqrt(d2);
+        const f = Math.min(4000 / d2, 40); dx = (dx / d) * f; dy = (dy / d) * f;
+        ns[i].vx += dx; ns[i].vy += dy; ns[j].vx -= dx; ns[j].vy -= dy;
+      }
+      for (const [a, b, rest] of ls) {
+        let dx = ns[b].x - ns[a].x, dy = ns[b].y - ns[a].y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 0.01; const f = (d - rest) * 0.06;
+        dx = (dx / d) * f; dy = (dy / d) * f;
+        ns[a].vx += dx; ns[a].vy += dy; ns[b].vx -= dx; ns[b].vy -= dy;
+      }
+      for (const n of ns) {
+        if (n.fixed) { n.vx = n.vy = 0; continue; }
+        n.vx += (CX - n.x) * 0.002; n.vy += (CY - n.y) * 0.002;
+        n.x += n.vx * alpha; n.y += n.vy * alpha;
+        n.vx *= 0.85; n.vy *= 0.85;
+        n.x = Math.max(n.r, Math.min(W - n.r, n.x)); n.y = Math.max(n.r, Math.min(H - n.r, n.y));
+      }
+      alpha *= 0.985; frames++;
+      setTick((t) => t + 1);
+      if (frames < 320 && alpha > 0.02) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [docs, CX, CY]);
+
+  const nodes = nodesRef.current, links = linksRef.current;
+  void tick; // dependency for re-render during settle
+
+  if (loading) return <p className="text-sm text-zinc-500">Loading map…</p>;
+  if (!docs.length) return <p className="text-sm text-zinc-500">No documents yet — upload some to see the map.</p>;
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-zinc-400">
+        {BUCKETS.map((b) => (
+          <span key={b.key} className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.color }} />{b.label}
+          </span>
+        ))}
+        <span className="text-zinc-600">· node size = chunk count · amber ring = unsanitized</span>
+      </div>
+      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0b]">
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-[640px] w-full">
+          {links.map(([a, b], i) => nodes[a] && nodes[b] && (
+            <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y} stroke="#ffffff" strokeOpacity={0.08} />
+          ))}
+          {nodes.map((n) => {
+            const unsanitized = n.type === "doc" && n.meta && !n.meta.sanitized;
+            return (
+              <g key={n.id} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(null)} className="cursor-default">
+                <circle cx={n.x} cy={n.y} r={n.r} fill={n.color} fillOpacity={n.type === "doc" ? 0.9 : 1}
+                  stroke={unsanitized ? "#f59e0b" : "#000"} strokeWidth={unsanitized ? 2 : 1} />
+                {n.type !== "doc" && (
+                  <text x={n.x} y={n.y - n.r - 5} textAnchor="middle" fontSize={n.type === "hub" ? 14 : 11} fill="#e5e7eb">{n.label}</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        {hover && hover.type === "doc" && hover.meta && (
+          <div className="pointer-events-none absolute left-3 top-3 max-w-xs rounded-lg border border-white/15 bg-black/90 px-3 py-2 text-xs">
+            <p className="font-medium text-white">{hover.label}</p>
+            <p className="mt-0.5 text-zinc-400">{hover.meta.doc_kind} · {hover.meta.vertical} · {hover.meta.chunk_count} chunks</p>
+            <p className={hover.meta.sanitized ? "text-emerald-400" : "text-amber-400"}>{hover.meta.sanitized ? "sanitized" : "unsanitized"}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
