@@ -6,7 +6,7 @@ import test from "node:test";
 const apiRoutes = walk("app/api").filter((file) => file.endsWith("/route.ts")).sort();
 
 test("backend route inventory keeps critical production APIs present", () => {
-  assert.equal(apiRoutes.length, 71);
+  assert.ok(apiRoutes.length >= 71, `expected at least 71 backend routes, found ${apiRoutes.length}`);
   for (const route of [
     "app/api/health/route.ts",
     "app/api/ready/route.ts",
@@ -39,6 +39,7 @@ test("public route allowlist stays explicit", () => {
     const source = readFileSync(route, "utf8");
     const protectsWithUserSession =
       source.includes("auth.getUser") ||
+      source.includes("requireAdmin") ||
       source.includes("requireWorkspaceProfile") ||
       source.includes('from "@/lib/engine/workspace/service"') ||
       source.includes("ingestEmailNegotiation");

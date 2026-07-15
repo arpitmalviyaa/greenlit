@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { MemoSchema } from "@/lib/anthropic/prompts/startup-review";
+import { internalError } from "@/lib/api/errors";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -41,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const service = await createServiceClient();
   const { data, error } = await service.from("startup_memos")
     .update(patch).eq("matter_id", id).select("id, status").order("created_at", { ascending: false }).limit(1);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/startup/[id]/route.ts", { message: error.message });
   if (!data?.length) return NOT_FOUND;
   return NextResponse.json({ ok: true, status: "draft" });
 }
@@ -55,7 +56,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { data, error } = await service.from("startup_memos")
     .update({ status: "reviewed", reviewed_at: new Date().toISOString(), reviewer_user: user.id, updated_at: new Date().toISOString() })
     .eq("matter_id", id).select("id, status, reviewed_at");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/startup/[id]/route.ts", { message: error.message });
   if (!data?.length) return NOT_FOUND;
   return NextResponse.json({ ok: true, status: "reviewed", reviewed_at: data[0].reviewed_at });
 }

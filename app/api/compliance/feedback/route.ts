@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { internalError } from "@/lib/api/errors";
 
 // Reviewer verdict on a statutory finding. Signal feeds chunk_feedback_scores,
 // which nudges retrieval ranking (see lib/corpus/retrieve.ts) and seeds the
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     user_id: user.id,
   });
   // FK failure = unknown finding id → 404 rather than 500.
-  if (error) return NextResponse.json({ error: error.message }, { status: error.code === "23503" ? 404 : 500 });
+  if (error?.code === "23503") return NextResponse.json({ error: "Finding not found" }, { status: 404 });
+  if (error) return internalError("app/api/compliance/feedback/route.ts", { message: error.message });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

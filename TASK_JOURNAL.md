@@ -527,3 +527,11 @@
 - Added `tests/auth-flows.test.mjs` as a dependency-free contract test over the actual auth entry points.
 - Added `npm run test:auth`, which also runs the executable session-cookie checks in `tests/session-cookies.test.mjs`.
 - Live Supabase configuration independently confirmed a 3600-second JWT lifetime, refresh-token rotation enabled, and a 10-second reuse interval. The automated suite checks the application half of that contract without requiring production credentials.
+
+### Task 5: CI improvements
+
+- Added weekly Dependabot checks for npm and GitHub Actions.
+- Added a non-deploying GitHub Actions workflow for clean install, high-severity npm audit, lint, type-check, auth tests, backend access-control tests, phase tests, source security audit, smoke tests, build verification, and full-history Gitleaks scanning.
+- Pinned all GitHub Actions to full commit SHAs.
+- Repaired validation blockers exposed by the new pipeline: stale exact API-route count, missing recognition of the shared admin gate, six raw backend error-response paths, and the intentional ref-backed corpus graph simulation lint annotation.
+- No deployment step, production credential, or secret value was added.

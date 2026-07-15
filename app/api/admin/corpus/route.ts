@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ingestDocument } from "@/lib/corpus/pipeline";
 import { isVertical } from "@/lib/corpus/vertical";
 import { htmlToText, htmlTitle } from "@/lib/utils/html-to-text";
+import { internalError } from "@/lib/api/errors";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   const vertical = new URL(request.url).searchParams.get("vertical");
   if (isVertical(vertical)) q = q.eq("vertical", vertical);
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/corpus/route.ts", { message: error.message });
   const docs = (data ?? []).map((d) => ({
     ...d,
     chunk_count: Array.isArray(d.corpus_chunks) ? (d.corpus_chunks[0]?.count ?? 0) : 0,
@@ -62,8 +63,8 @@ export async function POST(request: Request) {
         const res = await fetch(parsed, { redirect: "follow", signal: AbortSignal.timeout(20_000) });
         if (!res.ok) return NextResponse.json({ error: `fetch failed: ${res.status}` }, { status: 422 });
         html = (await res.text()).slice(0, 2_000_000); // ponytail: cap at 2MB of HTML
-      } catch (e) {
-        return NextResponse.json({ error: `fetch error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 422 });
+      } catch {
+        return NextResponse.json({ error: "Could not fetch URL" }, { status: 422 });
       }
       const text = htmlToText(html);
       if (text.length < 40) return NextResponse.json({ error: "no readable text at url" }, { status: 422 });

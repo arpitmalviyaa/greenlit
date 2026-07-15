@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { reprocessDocument } from "@/lib/corpus/pipeline";
+import { internalError } from "@/lib/api/errors";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -36,7 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const service = await createServiceClient();
   const { error } = await service.from("corpus_documents")
     .update({ sanitized: body.sanitized === true }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/corpus/[id]/route.ts", { message: error.message });
   return NextResponse.json({ ok: true, sanitized: body.sanitized === true });
 }
 
@@ -56,6 +57,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { data: doc } = await service.from("corpus_documents").select("file_path").eq("id", id).single();
   if (doc?.file_path) await service.storage.from("corpus").remove([doc.file_path]);
   const { error } = await service.from("corpus_documents").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/corpus/[id]/route.ts", { message: error.message });
   return NextResponse.json({ deleted: true });
 }

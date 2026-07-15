@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createStartupMatter, isStartupSubType, type NewDoc } from "@/lib/startup/run";
+import { internalError } from "@/lib/api/errors";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -16,7 +17,7 @@ export async function GET() {
     .select("id, title, sub_type, created_at, startup_memos(id, status, created_at), startup_documents(count)")
     .order("created_at", { ascending: false })
     .limit(200);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/startup/route.ts", { message: error.message });
   return NextResponse.json(data ?? []);
 }
 
@@ -64,7 +65,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "analysis failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError("app/api/admin/startup/route.ts", {
+      message: err instanceof Error ? err.message : "analysis failed",
+    });
   }
 }

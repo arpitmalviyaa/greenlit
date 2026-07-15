@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/corpus/admin";
 import { createServiceClient } from "@/lib/supabase/server";
+import { internalError } from "@/lib/api/errors";
 
 const NOT_FOUND = NextResponse.json({ error: "Not found" }, { status: 404 });
 const CLAUSE_TYPES = ["usage_rights", "exclusivity", "payment_terms", "indemnity", "termination", "morality", "ip_assignment", "confidentiality", "deliverables", "other"];
@@ -27,7 +28,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const service = await createServiceClient();
   const { data, error } = await service.from("corpus_chunks")
     .update(patch).eq("id", id).select("id, clause_type, risk_note, stance, status").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/corpus/chunk/[id]/route.ts", { message: error.message });
   return NextResponse.json(data);
 }
 
@@ -36,6 +37,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const service = await createServiceClient();
   const { error } = await service.from("corpus_chunks").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("app/api/admin/corpus/chunk/[id]/route.ts", { message: error.message });
   return NextResponse.json({ deleted: true });
 }

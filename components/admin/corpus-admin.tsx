@@ -94,6 +94,7 @@ type GNode = {
   x: number; y: number; vx: number; vy: number; fixed?: boolean; meta?: DocRow;
 };
 
+/* eslint-disable react-hooks/refs -- ponytail: this small force simulation intentionally mutates ref state; tick only schedules SVG snapshots. */
 function GraphView({ docs }: { docs: DocRow[] }) {
   const [hover, setHover] = useState<GNode | null>(null);
   const [tick, setTick] = useState(0); // re-render as the sim settles
@@ -204,6 +205,7 @@ function GraphView({ docs }: { docs: DocRow[] }) {
     </div>
   );
 }
+/* eslint-enable react-hooks/refs */
 
 function UploadView({ onSaved }: { onSaved: () => void }) {
   const [items, setItems] = useState<Staged[]>([]);
