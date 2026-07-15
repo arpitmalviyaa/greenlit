@@ -1,122 +1,226 @@
-// Cross-tenant denial test: two QA users in two orgs; each tries to read the
-// other's contracts, content scans, approvals, and proof storage. Cleans up.
+// Clone-only RLS regression. The service role is used only for fixtures and
+// cleanup; every access assertion uses anon or authenticated clients.
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
 
-const env = {};
-for (const line of readFileSync("/Users/arpitmalviya/Downloads/greenlit/.env.local", "utf8").split("\n")) {
-  const m = line.match(/^([A-Z_]+)=(.*)$/);
-  if (m) env[m[1]] = m[2].replace(/^"|"$/g, "");
+const EXPECTED_REF = "juhwnamjakmkvixxwrvv";
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const actualRef = url?.match(/^https:\/\/([a-z0-9]+)\.supabase\.co$/)?.[1];
+
+if (actualRef !== EXPECTED_REF) {
+  console.error(`HARD GATE FAILED: expected clone ${EXPECTED_REF}, received ${actualRef ?? "no project"}`);
+  process.exit(42);
+}
+if (!anonKey || !serviceKey) {
+  console.error("Clone anon and service-role credentials are required through environment variables.");
+  process.exit(2);
 }
 
-const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
-const admin = createClient(URL_, env.SUPABASE_SERVICE_ROLE_KEY);
+const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+const anon = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const results = [];
-const check = (name, ok, detail = "") => {
-  results.push([ok ? "PASS" : "FAIL", name, detail]);
-};
-
-const STAMP = Math.random().toString(36).slice(2, 8);
+const stamp = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const users = [];
 const orgs = [];
-let corpusDocId = null;
+const objectPaths = [];
+let ownWriteId = null;
 
-async function makeTenant(n) {
-  const email = `greenlit.qa.p3.${STAMP}.u${n}@example.com`;
-  const { data: u, error: ue } = await admin.auth.admin.createUser({
-    email, password: `Qa-${STAMP}-pass-${n}!`, email_confirm: true, user_metadata: { name: `QA P3 U${n}` },
+function record(flow, actor, operation, expected, passed, actual) {
+  results.push({ flow, actor, operation, expected, passed, actual });
+}
+
+async function mustSingle(label, query) {
+  const { data, error } = await query;
+  if (error) throw new Error(`${label}: ${error.message}`);
+  return data;
+}
+
+async function makeTenant(number) {
+  const email = `greenlit.clone.rls.${stamp}.u${number}@example.com`;
+  const password = `Clone-${stamp}-${number}!Aa9`;
+  const { data: created, error: userError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name: `Clone RLS User ${number}` },
   });
-  if (ue) throw new Error("createUser: " + ue.message);
-  const { data: org, error: oe } = await admin.from("organisations").insert({ name: `QA P3 Org ${n} ${STAMP}`, slug: `qa-p3-${STAMP}-${n}` }).select().single();
-  if (oe) throw new Error("org: " + oe.message);
-  await admin.from("profiles").update({ organisation_id: org.id, role: "agency_admin", onboarding_done: true }).eq("id", u.user.id);
-  const { data: contract, error: ce } = await admin.from("contracts").insert({
-    organisation_id: org.id, title: `QA contract ${n}`, uploaded_by: u.user.id, status: "pending_review", raw_text: "test contract text",
-  }).select().single();
-  if (ce) throw new Error("contract: " + ce.message);
-  const { data: scan } = await admin.from("content_scans").insert({
-    organisation_id: org.id, content_type: "caption", raw_content: "qa scan", scan_result_json: {}, risk_score: 5,
-    verdict: "greenlit", checker_ids_run: [], top_issues_json: [], requires_lawyer: false, jurisdiction: "IN", created_by: u.user.id,
-  }).select().single();
-  const { data: approval } = await admin.from("approval_requests").insert({
-    organisation_id: org.id, title: `QA approval ${n}`, submitted_by: u.user.id, status: "pending", contract_id: contract.id,
-  }).select().single();
-  users.push(u.user); orgs.push(org);
-  const client = createClient(URL_, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  const { error: se } = await client.auth.signInWithPassword({ email, password: `Qa-${STAMP}-pass-${n}!` });
-  if (se) throw new Error("signIn: " + se.message);
-  return { client, org, contract, scan, approval, user: u.user };
+  if (userError) throw new Error(`create user ${number}: ${userError.message}`);
+  users.push(created.user);
+
+  const org = await mustSingle(`create org ${number}`, admin.from("organisations").insert({
+    name: `Clone RLS Org ${number} ${stamp}`,
+    slug: `clone-rls-${stamp}-${number}`,
+  }).select().single());
+  orgs.push(org);
+
+  const { error: profileError } = await admin.from("profiles").update({
+    organisation_id: org.id,
+    role: "agency_admin",
+    onboarding_done: true,
+  }).eq("id", created.user.id);
+  if (profileError) throw new Error(`update profile ${number}: ${profileError.message}`);
+
+  const contract = await mustSingle(`create contract ${number}`, admin.from("contracts").insert({
+    organisation_id: org.id,
+    title: `Clone RLS Contract ${number}`,
+    uploaded_by: created.user.id,
+    status: "pending_review",
+    raw_text: "clone isolation fixture",
+  }).select().single());
+
+  const approval = await mustSingle(`create approval ${number}`, admin.from("approval_requests").insert({
+    organisation_id: org.id,
+    title: `Clone RLS Approval ${number}`,
+    submitted_by: created.user.id,
+    status: "pending",
+    contract_id: contract.id,
+  }).select().single());
+
+  const proof = await mustSingle(`create proof ${number}`, admin.from("proof_vault_entries").insert({
+    organisation_id: org.id,
+    contract_id: contract.id,
+    entry_type: "document",
+    title: `Clone RLS Proof ${number}`,
+    uploaded_by: created.user.id,
+  }).select().single());
+
+  const delivery = await mustSingle(`create delivery ${number}`, admin.from("delivery_locks").insert({
+    organisation_id: org.id,
+    contract_id: contract.id,
+    locked_by: created.user.id,
+  }).select().single());
+
+  const client = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+  if (signInError) throw new Error(`sign in ${number}: ${signInError.message}`);
+  return { client, user: created.user, org, contract, approval, proof, delivery };
+}
+
+async function expectVisible(flow, actor, query) {
+  const { data, error } = await query;
+  const passed = !error && (data ?? []).length === 1;
+  record(flow, actor, "SELECT", "one permitted row", passed, error?.code ?? `${data?.length ?? 0} rows`);
+}
+
+async function expectHidden(flow, actor, query) {
+  const { data, error } = await query;
+  const passed = (data ?? []).length === 0 && (!error || error.code === "42501");
+  record(flow, actor, "SELECT", "zero rows / access denied", passed, error?.code ?? `${data?.length ?? 0} rows`);
+}
+
+async function expectWriteDenied(flow, actor, query) {
+  const { data, error, count } = await query;
+  const returned = Array.isArray(data) ? data.length : (data ? 1 : 0);
+  const passed = Boolean(error) || returned === 0 || count === 0;
+  record(flow, actor, "WRITE", "RLS rejection / zero affected rows", passed, error?.code ?? `${returned} returned`);
 }
 
 try {
   const a = await makeTenant(1);
   const b = await makeTenant(2);
 
-  // Own-row sanity: A sees own contract
-  {
-    const { data } = await a.client.from("contracts").select("id").eq("id", a.contract.id);
-    check("A reads own contract", (data ?? []).length === 1);
-  }
-  // Cross-tenant SELECTs must return empty
-  for (const [name, table, id] of [
-    ["contracts", "contracts", b.contract.id],
-    ["content_scans", "content_scans", b.scan?.id],
-    ["approval_requests", "approval_requests", b.approval?.id],
+  await expectVisible("profiles", "user A", a.client.from("profiles").select("id").eq("id", a.user.id));
+  await expectHidden("profiles", "user B", b.client.from("profiles").select("id").eq("id", a.user.id));
+  await expectVisible("organisations", "user A", a.client.from("organisations").select("id").eq("id", a.org.id));
+  await expectHidden("organisations", "user B", b.client.from("organisations").select("id").eq("id", a.org.id));
+
+  for (const [table, row] of [
+    ["contracts", a.contract],
+    ["approval_requests", a.approval],
+    ["proof_vault_entries", a.proof],
+    ["delivery_locks", a.delivery],
   ]) {
-    if (!id) { check(`A denied ${name}`, false, "fixture missing"); continue; }
-    const { data } = await a.client.from(table).select("id").eq("id", id);
-    check(`A denied B's ${name}`, (data ?? []).length === 0);
+    await expectVisible(table, "user A", a.client.from(table).select("id").eq("id", row.id));
+    await expectHidden(table, "user B direct PK", b.client.from(table).select("id").eq("id", row.id));
+    const { data, error } = await b.client.from(table).select("id");
+    const leaked = (data ?? []).some(({ id }) => id === row.id);
+    record(table, "user B list", "SELECT list", "no user A row", !error && !leaked, error?.code ?? `${data?.length ?? 0} visible rows`);
   }
-  // Cross-tenant UPDATE must not stick
-  {
-    await a.client.from("contracts").update({ title: "hacked" }).eq("id", b.contract.id);
-    const { data } = await admin.from("contracts").select("title").eq("id", b.contract.id).single();
-    check("A cannot update B's contract", data.title === "QA contract 2", data.title);
+
+  await expectWriteDenied("contracts", "user A -> user B", a.client.from("contracts")
+    .update({ title: "forged update" }).eq("id", b.contract.id).select("id"));
+  await expectVisible("contracts after forged update", "user B", b.client.from("contracts")
+    .select("id").eq("id", b.contract.id).eq("title", `Clone RLS Contract 2`));
+
+  await expectWriteDenied("contracts", "user A -> user B", a.client.from("contracts")
+    .delete().eq("id", b.contract.id).select("id"));
+  await expectVisible("contracts after forged delete", "user B", b.client.from("contracts")
+    .select("id").eq("id", b.contract.id));
+
+  await expectWriteDenied("contracts forged organisation", "user A", a.client.from("contracts").insert({
+    organisation_id: b.org.id,
+    title: "forged organisation insert",
+    uploaded_by: a.user.id,
+    status: "pending_review",
+  }).select("id"));
+
+  const { data: ownWrite, error: ownWriteError } = await a.client.from("contracts").insert({
+    organisation_id: a.org.id,
+    title: "authenticated clone write",
+    uploaded_by: a.user.id,
+    status: "pending_review",
+  }).select("id").single();
+  ownWriteId = ownWrite?.id ?? null;
+  record("contracts own write", "user A", "INSERT", "one permitted row", !ownWriteError && Boolean(ownWriteId), ownWriteError?.code ?? "inserted");
+
+  for (const bucket of ["contracts", "proof-vault", "claim-evidence", "ip-evidence"]) {
+    const ownPath = `${a.org.id}/clone-rls/${stamp}-${bucket}.txt`;
+    const otherPath = `${b.org.id}/clone-rls/${stamp}-${bucket}.txt`;
+    objectPaths.push([bucket, ownPath], [bucket, otherPath]);
+    const { error: ownUploadError } = await a.client.storage.from(bucket).upload(ownPath, new Blob(["own"]));
+    record(`${bucket} own path`, "user A", "UPLOAD", "permitted", !ownUploadError, ownUploadError?.message ?? "uploaded");
+    const { data: ownDownload, error: ownDownloadError } = await a.client.storage.from(bucket).download(ownPath);
+    record(`${bucket} own path`, "user A", "DOWNLOAD", "permitted", Boolean(ownDownload) && !ownDownloadError, ownDownloadError?.message ?? "downloaded");
+
+    const { error: fixtureError } = await admin.storage.from(bucket).upload(otherPath, new Blob(["other"]));
+    if (fixtureError) throw new Error(`${bucket} cross-path fixture: ${fixtureError.message}`);
+    const { data: crossDownload, error: crossDownloadError } = await a.client.storage.from(bucket).download(otherPath);
+    record(`${bucket} cross-tenant path`, "user A -> user B", "DOWNLOAD", "access denied", !crossDownload && Boolean(crossDownloadError), crossDownloadError?.message ?? "unexpected data");
+    const forgedPath = `${b.org.id}/clone-rls/${stamp}-${bucket}-forged.txt`;
+    objectPaths.push([bucket, forgedPath]);
+    const { error: forgedUploadError } = await a.client.storage.from(bucket).upload(forgedPath, new Blob(["forged"]));
+    record(`${bucket} cross-tenant path`, "user A -> user B", "UPLOAD", "access denied", Boolean(forgedUploadError), forgedUploadError?.message ?? "unexpected upload");
   }
-  // Proof storage: A tries to read B's org path
-  {
-    const path = `${b.org.id}/qa-test/evidence/file.txt`;
-    await admin.storage.from("proof-vault").upload(path, new Blob(["qa"]), { upsert: true }).catch(() => {});
-    const { data, error } = await a.client.storage.from("proof-vault").download(path);
-    check("A denied B's proof file", !data && !!error, error?.message ?? "");
+
+  for (const table of [
+    "analytics_events",
+    "compliance_findings",
+    "finding_feedback",
+    "scope_items",
+    "corpus_documents",
+    "corpus_chunks",
+    "analysis_corpus_refs",
+    "startup_matters",
+    "startup_documents",
+    "startup_memos",
+  ]) {
+    await expectHidden(table, "user A", a.client.from(table).select("*").limit(1));
+    await expectHidden(table, "anon", anon.from(table).select("*").limit(1));
   }
-  // Approvals API-level: B's approval invisible in A's list
-  {
-    const { data } = await a.client.from("approval_requests").select("id");
-    const leaked = (data ?? []).some((r) => r.id === b.approval?.id);
-    check("A's approval list has no B rows", !leaked);
-  }
-  // Corpus is house knowledge — service-role only, invisible to every tenant.
-  // Skips cleanly until migration 035 is applied (activates automatically after).
-  {
-    const { data: doc, error: insErr } = await admin.from("corpus_documents")
-      .insert({ doc_kind: "clause_note", deal_type: "other", title: "QA corpus row", status: "ready" })
-      .select("id").single();
-    if (insErr && /does not exist|schema cache/i.test(insErr.message)) {
-      results.push(["SKIP", "Corpus RLS (migration 035 not applied)", insErr.message]);
-    } else if (insErr) {
-      check("Corpus fixture insert", false, insErr.message);
-    } else {
-      corpusDocId = doc.id;
-      const { data: cd } = await a.client.from("corpus_documents").select("id").eq("id", doc.id);
-      check("A denied corpus_documents", (cd ?? []).length === 0);
-      const { data: cc } = await a.client.from("corpus_chunks").select("id").limit(1);
-      check("A denied corpus_chunks", (cc ?? []).length === 0);
-    }
-  }
+
+  await expectHidden("contracts", "anon", anon.from("contracts").select("id").limit(1));
+  await expectWriteDenied("contracts", "anon", anon.from("contracts").insert({
+    organisation_id: a.org.id,
+    title: "anonymous forged insert",
+    uploaded_by: a.user.id,
+    status: "pending_review",
+  }).select("id"));
 } finally {
-  if (corpusDocId) await admin.from("corpus_documents").delete().eq("id", corpusDocId).catch(() => {});
-  // Cleanup: delete QA rows, orgs, users
+  if (ownWriteId) await admin.from("contracts").delete().eq("id", ownWriteId);
+  for (const [bucket, path] of objectPaths) await admin.storage.from(bucket).remove([path]);
   for (const org of orgs) {
+    await admin.from("delivery_locks").delete().eq("organisation_id", org.id);
+    await admin.from("proof_vault_entries").delete().eq("organisation_id", org.id);
     await admin.from("approval_requests").delete().eq("organisation_id", org.id);
-    await admin.from("content_scans").delete().eq("organisation_id", org.id);
     await admin.from("contracts").delete().eq("organisation_id", org.id);
-    await admin.storage.from("proof-vault").remove([`${org.id}/qa-test/evidence/file.txt`]).catch(() => {});
   }
-  for (const u of users) await admin.auth.admin.deleteUser(u.id).catch((e) => console.error("user cleanup:", e.message));
+  for (const user of users) await admin.auth.admin.deleteUser(user.id);
   for (const org of orgs) await admin.from("organisations").delete().eq("id", org.id);
 }
 
-for (const [status, name, detail] of results) console.log(`${status}  ${name}${detail ? "  (" + detail + ")" : ""}`);
-if (results.some(([s]) => s === "FAIL")) process.exit(1);
-console.log("ALL CROSS-TENANT CHECKS PASSED");
+for (const result of results) {
+  console.log(`${result.passed ? "PASS" : "FAIL"} | ${result.flow} | ${result.actor} | ${result.operation} | expected: ${result.expected} | actual: ${result.actual}`);
+}
+if (results.some(({ passed }) => !passed)) process.exit(1);
+console.log(`ALL TWO-TENANT RLS CHECKS PASSED (${results.length} assertions)`);
