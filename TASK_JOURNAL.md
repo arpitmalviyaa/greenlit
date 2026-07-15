@@ -566,3 +566,20 @@
 - Final code-bearing GitHub Actions run `29418110114` passed both jobs: Gitleaks in 9 seconds and the full verify pipeline in 1 minute 1 second.
 - GitHub Dependabot configuration validation passed.
 - Noted the non-blocking GitHub warning that the pinned action versions target the deprecated Node 20 action runtime and are being forced onto Node 24. Update pins when Node 24-native action releases are available.
+
+## Supabase Production Hardening Audit - 2026-07-15
+
+### Task 1: Repository and linked-project inspection
+
+- Re-read the complete tracked repository inventory and inspected every production-relevant Supabase integration surface without changing application features or production state.
+- Verified the worktree began clean on `website-v2-editorial` and matched its remote.
+- Queried live Auth configuration, database catalog, RLS policies, constraints, indexes, functions, Storage buckets/policies, Edge Functions, backups, network restrictions, SSL enforcement, Security Advisor, Performance Advisor, and query/table statistics without printing secrets.
+- Confirmed 108 public tables with RLS enabled, 219 public/storage policies, 227 foreign keys, 207 indexes, all six buckets private, zero deployed Edge Functions, and seven completed daily physical backups.
+
+### Task 2: Production blocker and manual handoff
+
+- Found critical migration-history divergence: overlapping logical changes are recorded with different local and production version identifiers. Stopped before any `db push`, migration repair, or live configuration mutation.
+- Confirmed additional production blockers: database SSL enforcement off, database network open to all IPv4/IPv6, Apple provider visible but disabled/unconfigured, and no verified backup/restore path for Storage object bytes.
+- Revalidated the historical password-reset root cause and current path-token fix. Current DNS/SMTP state supports Resend delivery; invitation email remains query-token based and requires the same hardening.
+- Added `SECURITY_REPORT.md`, `docs/SUPABASE_PRODUCTION_CHECKLIST.md`, and `MANUAL_ACTIONS.md` with exact findings, readiness gates, click-by-click dashboard work, risk, and time estimates.
+- No production setting, schema, provider, secret, or deployment was changed.
