@@ -550,3 +550,8 @@
 - Expanded `npm run smoke` to cover the requested homepage, login, signup, dashboard authentication boundary, compliance feedback endpoint, and health endpoint.
 - Preserved the existing core API/file-surface smoke checks.
 - Added optional live HTTP smoke checks behind `SMOKE_BASE_URL`; CI remains non-deploying and runs the deterministic repository checks by default.
+
+### Task 7: Week 0 documentation
+
+- Added `docs/WEEK0_REPORT.md` with completed work, manual steps, risks, recommendations, validation evidence, and next actions.
+- Report explicitly stops at Week 0 stabilization. No Month 1 work, feature work, or UI redesign was started.
