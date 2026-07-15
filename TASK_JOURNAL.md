@@ -535,3 +535,10 @@
 - Pinned all GitHub Actions to full commit SHAs.
 - Repaired validation blockers exposed by the new pipeline: stale exact API-route count, missing recognition of the shared admin gate, six raw backend error-response paths, and the intentional ref-backed corpus graph simulation lint annotation.
 - No deployment step, production credential, or secret value was added.
+- Enabled GitHub Dependabot vulnerability alerts and automated security updates through the repository API. Existing GitHub secret scanning and push protection remain enabled.
+
+### Task 6: Smoke tests
+
+- Expanded `npm run smoke` to cover the requested homepage, login, signup, dashboard authentication boundary, compliance feedback endpoint, and health endpoint.
+- Preserved the existing core API/file-surface smoke checks.
+- Added optional live HTTP smoke checks behind `SMOKE_BASE_URL`; CI remains non-deploying and runs the deterministic repository checks by default.

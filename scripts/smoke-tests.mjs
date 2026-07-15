@@ -3,7 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 const checks = [
   ["homepage", "app/page.tsx"],
   ["login", "app/(auth)/login/page.tsx"],
+  ["signup", "app/(auth)/signup/page.tsx"],
   ["dashboard", "app/(dashboard)/agency/page.tsx"],
+  ["compliance endpoint", "app/api/compliance/feedback/route.ts"],
   ["contract upload", "app/api/counsel/upload/route.ts"],
   ["contract review", "app/api/counsel/analyse/route.ts"],
   ["comments", "app/api/workspace/contracts/[contract_id]/comments/route.ts"],
@@ -48,14 +50,56 @@ if (existsSync(".next/build-manifest.json")) {
   if (!manifest.includes("/_app")) issues.push("Next build manifest missing app bundle");
 }
 
+const middleware = read("lib/supabase/middleware.ts");
+for (const publicPath of ["/login", "/signup", "/api/health"]) {
+  if (!middleware.includes(`"${publicPath}"`)) issues.push(`${publicPath} is not public in auth middleware`);
+}
+if (!middleware.includes("if (!user && !isPublicRoute)")) issues.push("dashboard routes are not protected by auth middleware");
+
+const compliance = read("app/api/compliance/feedback/route.ts");
+if (!compliance.includes("auth.getUser")) issues.push("compliance endpoint is missing user authentication");
+if (!compliance.includes("accepted") || !compliance.includes("rejected")) issues.push("compliance endpoint verdict validation is missing");
+
+const health = read("app/api/health/route.ts");
+if (!health.includes("ok: true") || !health.includes('service: "greenlit"')) issues.push("health endpoint contract changed");
+
 if (issues.length) {
   console.error("Smoke tests failed:");
   for (const issue of issues) console.error(`- ${issue}`);
   process.exit(1);
 }
 
-console.log("Smoke tests passed: homepage, login, dashboard, upload, review, comments API, email ingest, approvals, notifications, and health endpoints.");
+if (process.env.SMOKE_BASE_URL) await runLiveSmoke(process.env.SMOKE_BASE_URL);
+
+console.log("Smoke tests passed: homepage, login, signup, dashboard auth boundary, compliance endpoint, health endpoint, and core validation surfaces.");
 
 function read(path) {
   return readFileSync(path, "utf8");
+}
+
+async function runLiveSmoke(baseUrl) {
+  const base = new URL(baseUrl);
+  const get = (path) => fetch(new URL(path, base), { redirect: "manual" });
+  for (const path of ["/", "/login", "/signup", "/api/health"]) {
+    const response = await get(path);
+    if (!response.ok) issues.push(`live ${path} returned ${response.status}`);
+  }
+  const dashboard = await get("/agency");
+  if (![302, 303, 307, 308].includes(dashboard.status)) {
+    issues.push(`live logged-out dashboard returned ${dashboard.status}, expected an auth redirect`);
+  }
+  const complianceResponse = await fetch(new URL("/api/compliance/feedback", base), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+    redirect: "manual",
+  });
+  if (![302, 303, 307, 308, 401].includes(complianceResponse.status)) {
+    issues.push(`live compliance auth boundary returned ${complianceResponse.status}`);
+  }
+  if (issues.length) {
+    console.error("Live smoke tests failed:");
+    for (const issue of issues) console.error(`- ${issue}`);
+    process.exit(1);
+  }
 }
