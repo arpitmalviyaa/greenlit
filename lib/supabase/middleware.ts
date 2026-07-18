@@ -8,7 +8,7 @@ import { toSessionCookie } from "./session-cookies";
 // Role-based routing and profile lookups live in server layouts, not here,
 // to stay well within Edge Runtime CPU limits.
 
-const PUBLIC_ROUTES = ["/api/health", "/api/ready", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/auth/confirm", "/invite", "/pricing", "/certificate", "/agencies", "/creators", "/security", "/terms", "/check", "/api/public"];
+const PUBLIC_ROUTES = ["/api/health", "/api/ready", "/api/billing/plans", "/api/billing/webhook", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/auth/confirm", "/invite", "/pricing", "/certificate", "/agencies", "/creators", "/security", "/terms", "/check", "/api/public"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
