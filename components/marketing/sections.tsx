@@ -41,15 +41,15 @@ export function HowItWorks() {
       <div className="mt-10 space-y-16 md:space-y-20">
         {ACTS.map((a) => (
           <Reveal key={a.n}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14 items-center border-t border-[#111]/10 pt-10">
-              <div>
+            <div className="border-t border-[#111]/10 pt-10">
+              <div className="max-w-3xl">
                 <p className="ed-label text-[#1D9E75]">{a.n}</p>
                 <h3 className="font-[family-name:var(--font-display)] text-[#111] font-medium tracking-[-0.01em] leading-[1.1] text-3xl md:text-[2.6rem] mt-3">
                   {a.title}
                 </h3>
                 <p className="ed-body mt-4 text-[#111]/65 !text-[1.0625rem]">{a.body}</p>
               </div>
-              <div className="rounded-lg overflow-hidden border border-[#111]/10 shadow-[0_12px_40px_rgba(17,17,17,0.12)]">
+              <div className="mt-8 rounded-lg overflow-hidden border border-[#111]/10 shadow-[0_12px_40px_rgba(17,17,17,0.12)]">
                 <Image src={a.still} alt={a.alt} width={1920} height={1080} className="w-full block" />
               </div>
             </div>

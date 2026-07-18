@@ -27,7 +27,7 @@ const PLANS = [
   },
   {
     name: "Agency",
-    price: "₹15,000",
+    price: "₹8,799",
     period: "/month",
     tagline: "For agencies and talent managers running a roster.",
     features: [

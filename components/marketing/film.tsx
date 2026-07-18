@@ -12,18 +12,21 @@ export function Film() {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    v.defaultPlaybackRate = 1.25;
+    v.playbackRate = 1.25;
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setReduced(true);
       return;
     }
-    const v = ref.current;
-    if (!v) return;
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) v.play().catch(() => {});
         else v.pause();
       },
-      { threshold: 0.35 }
+      { threshold: 0 }
     );
     io.observe(v);
     return () => io.disconnect();
